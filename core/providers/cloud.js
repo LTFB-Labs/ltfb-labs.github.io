@@ -24,8 +24,10 @@ const callbackUrl = () => `${siteRoot}auth/callback/`;
 function client() {
   clientPromise ??= import(SUPABASE_ESM).then(({ createClient }) =>
     createClient(config.supabase.url, config.supabase.anonKey, {
-      // The ?code= / ?token_hash= on /auth/callback/ is handled by completeSignIn(), not on every page load.
-      auth: { flowType: 'pkce', detectSessionInUrl: false, persistSession: true, autoRefreshToken: true },
+      // 'implicit': the e-mail link itself carries the session (#access_token=…), so confirming the e-mail or
+      // setting a new password works on any device — the phone's mail app, another browser. (PKCE links work
+      // only in the browser that started the sign-in.) /auth/callback/ reads the link in completeSignIn().
+      auth: { flowType: 'implicit', detectSessionInUrl: false, persistSession: true, autoRefreshToken: true },
     }));
   return clientPromise;
 }
@@ -246,14 +248,24 @@ export async function completeSignIn() {
   }
 
   let result = null;
-  if (query.get('token_hash')) {
+  if (hash.get('access_token') && hash.get('refresh_token')) {
+    // Implicit flow: e-mail confirmation, new-password and Google/Facebook links land here with the session.
+    try {
+      result = await supabase.auth.setSession({ access_token: hash.get('access_token'), refresh_token: hash.get('refresh_token') });
+    } catch (e) {
+      console.error(e);
+      throw new Error(LINK_EXPIRED);
+    }
+    if (result.error) throw authError(result.error, LINK_EXPIRED);
+  } else if (query.get('token_hash')) {
     result = await supabase.auth.verifyOtp({ token_hash: query.get('token_hash'), type: query.get('type') || 'email' });
     if (result.error) throw authError(result.error, LINK_EXPIRED);
   } else if (query.get('code')) {
     result = await supabase.auth.exchangeCodeForSession(query.get('code'));
     if (result.error) {
-      throw authError(result.error, 'Входът не успя. Връзката трябва да се отвори в браузъра, в който е започнал входът. '
-        + 'Ако потвърждаваше имейла си, той вече е потвърден: влез с паролата си.');
+      // Links sent before the switch to the implicit flow (PKCE) work only in the browser that asked for them.
+      throw authError(result.error, 'Тази връзка е от по-стар вид и работи само в браузъра, от който е поискана. '
+        + 'Ако потвърждаваше имейла си, той вече е потвърден: влез с паролата си. Ако искаше нова парола, поискай пак „Забравена парола?“.');
     }
   }
   // The one-time code is spent: take it out of the address bar.

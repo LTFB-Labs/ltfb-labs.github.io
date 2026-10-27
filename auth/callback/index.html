@@ -9,7 +9,8 @@
   <link rel="stylesheet" href="../../shared/tokens.css">
   <link rel="stylesheet" href="../../core/core.css">
   <script type="module">
-    // Supabase returns here: Google/Facebook and e-mail links with ?code= (PKCE) or ?token_hash=&type=.
+    // Supabase returns here: e-mail and Google/Facebook links with #access_token=…&type= (implicit flow),
+    // or the older ?code= (PKCE) / ?token_hash=&type= forms.
     // ?reset=1 (or type=recovery) is the „Забравена парола?“ link: the parent sets a new password first.
     // The indexeddb provider never needs this page.
     import { store } from '../../core/store.js';
@@ -17,7 +18,8 @@
 
     const $ = (id) => document.getElementById(id);
     const params = new URLSearchParams(location.search);
-    const reset = params.has('reset') || params.get('type') === 'recovery';
+    const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
+    const reset = params.has('reset') || params.get('type') === 'recovery' || hashParams.get('type') === 'recovery';
 
     async function finish() {
       const message = await finishSignIn(store);
