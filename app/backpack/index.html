@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="la-root" content="../../">
+  <meta name="robots" content="noindex">
+  <title>Раница · LevAcademy</title>
+  <link rel="icon" href="../../img/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../../shared/tokens.css">
+  <link rel="stylesheet" href="../../core/core.css">
+  <link rel="stylesheet" href="backpack.css">
+  <script type="module" src="backpack.js"></script>
+</head>
+<body>
+  <header class="core-bar">
+    <a class="core-brand" href="../"><img src="../../img/logo.svg" alt="" width="36" height="36"><span>LevAcademy</span></a>
+    <a class="button button-small" href="../">← Назад</a>
+  </header>
+
+  <main class="core-page">
+    <p class="core-lead" id="loading">Зареждаме…</p>
+    <p class="core-error" id="page-error" role="alert" hidden></p>
+
+    <nav class="child-switch" id="child-switch" aria-label="Чия раница" hidden></nav>
+
+    <section id="no-child" hidden>
+      <h1>Кой учи днес?</h1>
+      <p class="core-lead">Избери дете, за да видиш раницата му.</p>
+      <a class="button button-primary" href="../">Избери дете</a>
+    </section>
+
+    <section id="backpack" hidden>
+      <div class="backpack-hero">
+        <img id="hero-avatar" alt="" width="120" height="120">
+        <div>
+          <h1 id="hero-title">Раницата</h1>
+          <div class="backpack-totals">
+            <span class="total"><b id="total-points">0</b> <span id="points-word">точки</span></span>
+            <span class="total"><b id="total-medals">0</b> <span id="medals-word">медала</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="backpack-empty" id="empty" hidden>
+        <p class="backpack-empty-title">Раницата още е празна.</p>
+        <p class="core-lead">Реши тест или упражнение в някой ап и тук ще се появят медалите и точките ти.</p>
+        <a class="button button-primary" href="../">Към апите</a>
+      </div>
+
+      <div class="backpack-apps" id="apps"></div>
+    </section>
+  </main>
+</body>
+</html>

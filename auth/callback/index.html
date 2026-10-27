@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="la-root" content="../../">
+  <meta name="robots" content="noindex">
+  <title>Вход · LevAcademy</title>
+  <link rel="stylesheet" href="../../shared/tokens.css">
+  <link rel="stylesheet" href="../../core/core.css">
+  <script type="module">
+    // Cognito returns here with ?code=…&state=…; local sign-in never needs this page.
+    import { store } from '../../core/store.js';
+    import { finishSignIn, showError } from '../../core/ui.js';
+
+    const error = document.getElementById('error');
+    try {
+      if (store.provider === 'cloud') await store.completeSignIn();
+      const message = await finishSignIn(store);
+      if (message) {
+        document.getElementById('status').hidden = true;
+        showError(error, message);
+        document.getElementById('continue').hidden = false;
+      }
+    } catch (e) {
+      document.getElementById('status').hidden = true;
+      showError(error, e.message);
+      document.getElementById('retry').hidden = false;
+    }
+  </script>
+</head>
+<body>
+  <header class="core-bar">
+    <a class="core-brand" href="../../"><img src="../../img/logo.svg" alt="" width="36" height="36"><span>LevAcademy</span></a>
+  </header>
+  <main class="core-page core-narrow">
+    <p class="core-lead" id="status">Влизаме…</p>
+    <p class="core-error" id="error" role="alert" hidden></p>
+    <p id="continue" hidden><a class="button button-primary" href="../../app/">Продължи</a></p>
+    <p id="retry" hidden><a class="button button-primary" href="../../login/">Към входа</a></p>
+  </main>
+</body>
+</html>

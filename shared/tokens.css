@@ -1,0 +1,28 @@
+/* LevAcademy design tokens: the look of the LTFB logo (turquoise + the yellow Пухчето).
+   Every page of the site and the core app uses these; pages add their own styles on top. */
+:root {
+  --bg: #f3f8f8;
+  --surface: #ffffff;
+  --surface-2: #e9f4f3;
+  --ink: #12302f;
+  --muted: #557170;
+  --line: #d5e6e5;
+  --accent: #22807f;
+  --accent-dark: #1a6766;
+  --accent-light: #e2f2f1;
+  --on-accent: #ffffff;
+  --yellow: #ffc400;
+  --danger: #c62828;
+  --ok: #15934a;
+  --radius: 16px;
+  --radius-small: 10px;
+  --shadow: 0 2px 10px rgba(18, 48, 47, .08);
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --page-width: 1200px;
+}
+
+* { box-sizing: border-box; }
+html { overflow-y: scroll; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 var(--font); }
+a { color: var(--accent-dark); }
+button, input, select { font: inherit; }

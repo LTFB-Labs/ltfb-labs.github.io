@@ -1,0 +1,39 @@
+/* The LevAcademy bar that core/levacademy.js puts at the top of an app page.
+   It lives inside someone else's page: own colours (no tokens.css there), every property set explicitly,
+   only la-topbar* classes. 44px high, in normal flow (first child of <body>), so it pushes the app down. */
+.la-topbar {
+  --la-ink: #12302f;
+  --la-muted: #557170;
+  --la-line: #d5e6e5;
+  --la-accent: #22807f;
+  --la-accent-dark: #1a6766;
+  --la-accent-light: #e2f2f1;
+  --la-surface: #ffffff;
+  --la-yellow: #ffc400;
+  box-sizing: border-box;
+  display: flex; align-items: center; gap: 8px;
+  height: 44px; margin: 0; padding: 0 12px;
+  background: var(--la-surface); color: var(--la-ink); border-bottom: 1px solid var(--la-line);
+  font: 600 15px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  position: relative; z-index: 4;
+  overflow: hidden;
+}
+.la-topbar * { box-sizing: border-box; }
+.la-topbar .la-topbar-link,
+.la-topbar .la-topbar-button {
+  display: inline-flex; align-items: center; flex: none;
+  height: 36px; margin: 0; padding: 0 10px; border-radius: 10px;
+  font: inherit; text-decoration: none; white-space: nowrap; cursor: pointer;
+}
+.la-topbar .la-topbar-link { color: var(--la-accent-dark); background: transparent; border: 0; }
+.la-topbar .la-topbar-button { color: var(--la-accent-dark); background: var(--la-surface); border: 2px solid var(--la-accent); }
+.la-topbar .la-topbar-link:hover,
+.la-topbar .la-topbar-button:hover { background: var(--la-accent-light); }
+.la-topbar .la-topbar-link:focus-visible,
+.la-topbar .la-topbar-button:focus-visible { outline: 3px solid var(--la-yellow); outline-offset: 1px; }
+.la-topbar .la-topbar-spacer { flex: 1; }
+.la-topbar .la-topbar-child { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.la-topbar .la-topbar-avatar { display: block; width: 32px; height: 32px; margin: 0; border-radius: 50%; background: var(--la-accent-light); flex: none; }
+.la-topbar .la-topbar-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--la-ink); }
+
+@media print { .la-topbar { display: none; } }

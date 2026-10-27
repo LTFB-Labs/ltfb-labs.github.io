@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="la-root" content="../">
+  <meta name="robots" content="noindex">
+  <title>Регистрация · LevAcademy</title>
+  <link rel="stylesheet" href="../shared/tokens.css">
+  <link rel="stylesheet" href="../core/core.css">
+  <script type="module" src="../core/sign-in-page.js"></script>
+</head>
+<body data-mode="register">
+  <header class="core-bar">
+    <a class="core-brand" href="../"><img src="../img/logo.svg" alt="" width="36" height="36"><span>LevAcademy</span></a>
+  </header>
+  <main class="core-page core-narrow">
+    <h1>Регистрация</h1>
+    <p class="core-lead">Профилът е за родителя. Децата добавяш после.</p>
+    <p class="core-note" id="invite-note" hidden>Поканен си в семейство в LevAcademy. Влез или се регистрирай и ще видиш децата.</p>
+
+    <form class="core-card core-form" id="local-form" hidden>
+      <p class="core-note">Тестов вход: без парола, всичко остава в този браузър.</p>
+      <label class="field">Имейл
+        <input name="email" type="email" autocomplete="email" required>
+      </label>
+      <label class="field">Твоето име
+        <input name="displayName" type="text" autocomplete="name" maxlength="60" required>
+      </label>
+      <button class="button button-primary" type="submit">Регистрирай се</button>
+    </form>
+
+    <div class="core-card core-form" id="cloud-box" hidden>
+      <button class="button button-primary" type="button" id="cloud-button">Регистрирай се с имейл или Google</button>
+    </div>
+
+    <p class="core-error" id="error" role="alert" hidden></p>
+    <p class="core-switch">Вече имаш профил? <a id="other-link" href="../login/">Влез</a></p>
+  </main>
+</body>
+</html>

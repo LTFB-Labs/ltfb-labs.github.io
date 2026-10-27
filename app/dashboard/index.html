@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="la-root" content="../../">
+  <meta name="robots" content="noindex">
+  <title>Табло · LevAcademy</title>
+  <link rel="icon" href="../../img/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../../shared/tokens.css">
+  <link rel="stylesheet" href="../../core/core.css">
+  <link rel="stylesheet" href="dashboard.css">
+  <script type="module" src="dashboard.js"></script>
+</head>
+<body>
+  <header class="core-bar">
+    <a class="core-brand" href="../"><img src="../../img/logo.svg" alt="" width="36" height="36"><span>LevAcademy</span></a>
+    <a class="button button-small" href="../">← Назад</a>
+  </header>
+
+  <main class="core-page">
+    <p class="core-lead" id="loading">Зареждаме…</p>
+    <p class="core-error" id="page-error" role="alert" hidden></p>
+
+    <section id="parent-only" hidden>
+      <h1>Таблото е за родителя</h1>
+      <p class="core-lead">Превключи на режим „Родител“, за да го видиш.</p>
+      <a class="button button-primary" href="../">Към LevAcademy</a>
+    </section>
+
+    <section id="no-children" hidden>
+      <h1>Табло</h1>
+      <p class="core-lead">Още няма деца. Добави първото и тук ще виждаш какво учи.</p>
+      <a class="button button-primary" href="../">Добави дете</a>
+    </section>
+
+    <section id="dashboard" hidden>
+      <h1>Табло</h1>
+      <nav class="child-switch" id="child-switch" aria-label="Дете"></nav>
+
+      <h2 id="chart-title">Активност през последните 14 дни</h2>
+      <figure class="day-chart">
+        <div class="day-chart-plot" id="day-chart" aria-hidden="true"></div>
+        <figcaption class="core-note" id="chart-caption"></figcaption>
+      </figure>
+      <details class="table-view">
+        <summary>Покажи като таблица</summary>
+        <table class="data-table">
+          <caption>Брой дейности по дни</caption>
+          <thead><tr><th scope="col">Ден</th><th scope="col">Дейности</th></tr></thead>
+          <tbody id="day-table"></tbody>
+        </table>
+      </details>
+
+      <h2>По апи</h2>
+      <p class="core-note" id="no-apps" hidden>Още няма дейности.</p>
+      <div class="app-summary" id="app-summary"></div>
+
+      <h2>Последни дейности</h2>
+      <p class="core-note" id="no-recent" hidden>Още няма дейности. Когато детето реши тест или упражнение, ще се появи тук.</p>
+      <ul class="recent" id="recent"></ul>
+    </section>
+  </main>
+</body>
+</html>

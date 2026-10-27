@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="la-root" content="../">
+  <meta name="robots" content="noindex">
+  <title>LevAcademy</title>
+  <link rel="stylesheet" href="../shared/tokens.css">
+  <link rel="stylesheet" href="../core/core.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="core-bar">
+    <a class="core-brand" href="../"><img src="../img/logo.svg" alt="" width="36" height="36"><span>LevAcademy</span></a>
+    <div class="core-bar-end">
+      <span class="core-bar-child" id="bar-child" hidden></span>
+      <button class="button button-small" type="button" id="to-parent" hidden>Родител</button>
+      <button class="button button-small" type="button" id="sign-out" hidden>Изход</button>
+    </div>
+  </header>
+
+  <main class="core-page">
+    <p class="core-lead" id="loading">Зареждаме…</p>
+    <p class="core-error" id="page-error" role="alert" hidden></p>
+
+    <section id="mode-choice" hidden>
+      <h1>Кой ползва устройството сега?</h1>
+      <div class="mode-buttons">
+        <button class="mode-button" type="button" data-mode="parent">
+          <strong>Родител</strong><span>деца, табло, покани</span>
+        </button>
+        <button class="mode-button" type="button" data-mode="child">
+          <strong>Дете</strong><span>кой учи и апите</span>
+        </button>
+      </div>
+      <p class="core-note">Изборът се помни на това устройство.</p>
+    </section>
+
+    <section id="parent-view" hidden>
+      <h1 id="parent-hello">Здравей!</h1>
+      <nav class="quick-links" aria-label="Бързи връзки">
+        <a class="quick-link" href="dashboard/">Табло</a>
+        <a class="quick-link" href="backpack/">Раница</a>
+        <button class="quick-link" type="button" id="to-child">Режим „Дете“</button>
+      </nav>
+
+      <h2>Деца</h2>
+      <ul class="child-list" id="children-list"></ul>
+      <p class="core-note" id="no-children-parent" hidden>Още няма деца. Добави първото.</p>
+      <button class="button button-primary" type="button" id="add-child">+ Добави дете</button>
+
+      <h2>Родители</h2>
+      <ul class="member-list" id="members-list"></ul>
+      <button class="button" type="button" id="invite-button">Покани втори родител</button>
+    </section>
+
+    <section id="child-pick" hidden>
+      <h1>Кой учи днес?</h1>
+      <div class="child-tiles" id="child-tiles"></div>
+      <p class="core-note" id="no-children-child" hidden>Още няма деца. Родителят трябва да ги добави.</p>
+    </section>
+
+    <section id="child-apps" hidden>
+      <h1 id="apps-title">Какво ще учим?</h1>
+      <div class="app-grid" id="apps-grid"></div>
+      <div class="dialog-actions">
+        <a class="button button-primary" href="backpack/">Моята раница</a>
+        <button class="button" type="button" id="change-child">Смени детето</button>
+      </div>
+    </section>
+  </main>
+
+  <dialog class="core-dialog" id="child-dialog" aria-labelledby="child-dialog-title">
+    <form class="core-form" id="child-form" method="dialog">
+      <h2 id="child-dialog-title">Ново дете</h2>
+      <label class="field">Име или прякор
+        <input name="name" type="text" maxlength="40" autocomplete="off" required autofocus>
+      </label>
+
+      <fieldset class="field">
+        <legend>Град</legend>
+        <div class="choice-row">
+          <label class="chip"><input type="radio" name="city" value="sofia" checked><span>София</span></label>
+          <label class="chip"><input type="radio" name="city" value="other"><span>Друг град</span></label>
+        </div>
+      </fieldset>
+
+      <div class="field">
+        <label for="school-select">Училище</label>
+        <input class="school-search" id="school-search" type="search" placeholder="Търси по име или номер" autocomplete="off" aria-label="Търси училище">
+        <select id="school-select" name="school"></select>
+      </div>
+
+      <fieldset class="field">
+        <legend>Клас</legend>
+        <div class="choice-row" id="grade-choices"></div>
+      </fieldset>
+
+      <fieldset class="field">
+        <legend>Картинка</legend>
+        <div class="avatar-choices" id="avatar-choices"></div>
+      </fieldset>
+
+      <p class="core-error" id="child-error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button class="button button-primary" type="submit" value="save">Запази</button>
+        <button class="button" type="button" id="child-cancel">Откажи</button>
+        <button class="button button-danger" type="button" id="child-remove" hidden>Премахни</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="core-dialog" id="invite-dialog" aria-labelledby="invite-dialog-title">
+    <form class="core-form" id="invite-form" method="dialog">
+      <h2 id="invite-dialog-title">Покани втори родител</h2>
+      <p class="core-note">Двамата родители са равни: виждат и променят едни и същи деца.</p>
+      <label class="field">Имейл на другия родител
+        <input name="email" type="email" autocomplete="off" required>
+      </label>
+      <div id="invite-result" hidden>
+        <label class="field">Връзка за поканата
+          <input id="invite-link" type="text" readonly>
+        </label>
+        <p class="core-note">Изпрати я на другия родител (съобщение, имейл). Важи 7 дни и само веднъж.</p>
+        <div class="dialog-actions">
+          <button class="button button-primary" type="button" id="invite-copy">Копирай</button>
+          <button class="button" type="button" id="invite-share" hidden>Сподели</button>
+        </div>
+      </div>
+      <p class="core-error" id="invite-error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button class="button button-primary" type="submit" value="create" id="invite-create">Направи покана</button>
+        <button class="button" type="button" id="invite-close">Затвори</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>
