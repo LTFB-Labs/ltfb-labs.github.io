@@ -38,14 +38,14 @@ async function afterSignIn(result) {
   fail(await finishSignIn(store));
 }
 
-// The eye button next to each password field shows or hides what was typed.
+// One eye button shows or hides every password field of the form together (password and its repeat).
 for (const toggle of document.querySelectorAll('.password-toggle')) {
   toggle.addEventListener('click', () => {
-    const input = toggle.parentElement.querySelector('input');
-    const show = input.type === 'password';
-    input.type = show ? 'text' : 'password';
+    const inputs = toggle.closest('form').querySelectorAll('input[name="password"], input[name="passwordRepeat"]');
+    const show = inputs[0].type === 'password';
+    for (const input of inputs) input.type = show ? 'text' : 'password';
     toggle.setAttribute('aria-pressed', String(show));
-    toggle.setAttribute('aria-label', show ? 'Скрий паролата' : 'Покажи паролата');
+    toggle.setAttribute('aria-label', show ? 'Скрий паролите' : 'Покажи паролите');
   });
 }
 
