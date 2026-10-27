@@ -145,3 +145,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .app-tile { display: grid; grid-template-columns: 64px 1fr; column-gap: 12px; align-items: center; }
   .app-tile img { width: 64px; height: 64px; grid-row: span 2; }
 }
+
+/* Password field with the show/hide eye button */
+.password-field { position: relative; display: block; }
+.password-field input { padding-right: 52px; }
+.password-toggle { position: absolute; top: 50%; right: 4px; transform: translateY(-50%); width: 44px; height: 44px;
+  display: grid; place-items: center; border: 0; border-radius: var(--radius-small); background: none; color: var(--muted); cursor: pointer; }
+.password-toggle:hover { color: var(--ink); background: var(--accent-light); }
+.password-toggle svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.password-toggle .eye-closed, .password-toggle[aria-pressed="true"] .eye-open { display: none; }
+.password-toggle[aria-pressed="true"] .eye-closed { display: block; }

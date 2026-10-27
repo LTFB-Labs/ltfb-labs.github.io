@@ -210,12 +210,11 @@ export async function signIn({ mode = 'login', email, password, displayName: nam
   const address = cleanEmail(email);
   if (mode === 'register') {
     const pass = checkNewPassword(password);
-    const cleanName = String(name || '').trim();
-    if (!cleanName) throw new Error('Напиши името си.');
+    const cleanName = String(name || '').trim();   // optional: the parent can add a name later
     const { data, error } = await supabase.auth.signUp({
       email: address,
       password: pass,
-      options: { data: { display_name: cleanName }, emailRedirectTo: callbackUrl() },
+      options: { data: cleanName ? { display_name: cleanName } : {}, emailRedirectTo: callbackUrl() },
     });
     if (error) throw authError(error, 'Регистрацията не успя. Опитай пак.');
     // With e-mail confirmation on, an existing address comes back as a user without identities.

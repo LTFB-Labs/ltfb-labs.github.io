@@ -38,6 +38,17 @@ async function afterSignIn(result) {
   fail(await finishSignIn(store));
 }
 
+// The eye button next to each password field shows or hides what was typed.
+for (const toggle of document.querySelectorAll('.password-toggle')) {
+  toggle.addEventListener('click', () => {
+    const input = toggle.parentElement.querySelector('input');
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    toggle.setAttribute('aria-pressed', String(show));
+    toggle.setAttribute('aria-label', show ? 'Скрий паролата' : 'Покажи паролата');
+  });
+}
+
 async function start() {
   if (await store.currentUser()) {
     fail(await finishSignIn(store));
@@ -49,6 +60,10 @@ async function start() {
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const data = new FormData(form);
+    if (mode === 'register' && data.get('password') !== data.get('passwordRepeat')) {
+      fail('Паролите не съвпадат.');
+      return;
+    }
     try {
       await afterSignIn(await store.signIn({
         mode, email: data.get('email'), password: data.get('password'), displayName: data.get('displayName'),

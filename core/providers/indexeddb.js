@@ -166,8 +166,8 @@ export async function signIn({ mode, email, displayName, password, provider } = 
 
   if (mode === 'register') {
     if (user) throw new Error('Вече има профил с този имейл. Влез с него.');
-    const cleanName = String(displayName || '').trim();
-    if (!cleanName) throw new Error('Напиши името си.');
+    // The name is optional at sign-up; until the parent adds one, the part of the e-mail before @ is shown.
+    const cleanName = String(displayName || '').trim() || cleanEmail.split('@')[0];
     user = { id: newId(), email: cleanEmail, displayName: cleanName, password: await hashPassword(pass), createdAt: now() };
     // Like ensure_user in the cloud: the first sign-in creates the user's own family.
     const family = { id: newId(), createdAt: now(), isTest: true };
