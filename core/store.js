@@ -1,19 +1,18 @@
 // The store: one API for every core page and for core/levacademy.js.
-// It picks the provider (local or cloud) from config.js; the device settings (mode, current child)
+// It picks the provider (indexeddb or cloud) from config.js; the device settings (mode, current child)
 // always live in this browser's localStorage, whatever the provider.
 import { config } from './config.js';
-import * as local from './providers/local.js';
+import * as indexeddb from './providers/indexeddb.js';
 import * as cloud from './providers/cloud.js';
 
 const siteRoot = new URL('../', import.meta.url).href;
 
 function cloudReady() {
-  const { cognito, supabase } = config;
-  return config.provider === 'cloud'
-    && Boolean(cognito.userPoolId && cognito.clientId && cognito.domain && supabase.url && supabase.anonKey);
+  const { supabase } = config;
+  return config.provider === 'cloud' && Boolean(supabase?.url && supabase?.anonKey);
 }
 
-const provider = cloudReady() ? cloud : local;
+const provider = cloudReady() ? cloud : indexeddb;
 provider.init({ config, siteRoot });
 
 const MODE_KEY = 'la.deviceMode';
@@ -57,13 +56,17 @@ function broadcast(type) {
 }
 
 export const store = {
-  provider: provider.name,       // 'local' | 'cloud'
+  provider: provider.name,       // 'indexeddb' | 'cloud'
   siteRoot,
 
   // Auth
   currentUser: () => provider.currentUser(),
+  // { mode: 'login' | 'register', email, password, displayName } or { provider: 'google' | 'facebook' }.
+  // Resolves to the user, or to { notice } when the sign-in is not finished yet (e-mail confirmation).
   signIn: (options) => provider.signIn(options),
   completeSignIn: () => provider.completeSignIn(),
+  resetPassword: (email) => provider.resetPassword(email),
+  setNewPassword: (password) => provider.setNewPassword(password),
   async signOut() {
     writeKey(MODE_KEY, null);
     writeKey(CHILD_KEY, null);

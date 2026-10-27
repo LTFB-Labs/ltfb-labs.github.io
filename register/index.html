@@ -19,21 +19,27 @@
     <p class="core-lead">Профилът е за родителя. Децата добавяш после.</p>
     <p class="core-note" id="invite-note" hidden>Поканен си в семейство в LevAcademy. Влез или се регистрирай и ще видиш децата.</p>
 
-    <form class="core-card core-form" id="local-form" hidden>
-      <p class="core-note">Тестов вход: без парола, всичко остава в този браузър.</p>
+    <form class="core-card core-form" id="sign-in-form" hidden>
+      <p class="core-note" id="local-note" hidden>Засега профилът и данните се пазят само в този браузър.</p>
       <label class="field">Имейл
         <input name="email" type="email" autocomplete="email" required>
       </label>
       <label class="field">Твоето име
         <input name="displayName" type="text" autocomplete="name" maxlength="60" required>
       </label>
+      <label class="field">Парола
+        <input name="password" type="password" autocomplete="new-password" minlength="8" required>
+        <span class="core-note">Поне 8 знака.</span>
+      </label>
       <button class="button button-primary" type="submit">Регистрирай се</button>
     </form>
 
-    <div class="core-card core-form" id="cloud-box" hidden>
-      <button class="button button-primary" type="button" id="cloud-button">Регистрирай се с имейл или Google</button>
+    <div class="core-card core-form" id="social-box" hidden>
+      <button class="button" type="button" data-provider="google">Вход с Google</button>
+      <button class="button" type="button" data-provider="facebook">Вход с Facebook</button>
     </div>
 
+    <p class="core-notice" id="notice" role="status" hidden></p>
     <p class="core-error" id="error" role="alert" hidden></p>
     <p class="core-switch">Вече имаш профил? <a id="other-link" href="../login/">Влез</a></p>
   </main>

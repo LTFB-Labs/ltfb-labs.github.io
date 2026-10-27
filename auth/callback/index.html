@@ -9,23 +9,49 @@
   <link rel="stylesheet" href="../../shared/tokens.css">
   <link rel="stylesheet" href="../../core/core.css">
   <script type="module">
-    // Cognito returns here with ?code=…&state=…; local sign-in never needs this page.
+    // Supabase returns here: Google/Facebook and e-mail links with ?code= (PKCE) or ?token_hash=&type=.
+    // ?reset=1 (or type=recovery) is the „Забравена парола?“ link: the parent sets a new password first.
+    // The indexeddb provider never needs this page.
     import { store } from '../../core/store.js';
     import { finishSignIn, showError } from '../../core/ui.js';
 
-    const error = document.getElementById('error');
-    try {
-      if (store.provider === 'cloud') await store.completeSignIn();
+    const $ = (id) => document.getElementById(id);
+    const params = new URLSearchParams(location.search);
+    const reset = params.has('reset') || params.get('type') === 'recovery';
+
+    async function finish() {
       const message = await finishSignIn(store);
       if (message) {
-        document.getElementById('status').hidden = true;
-        showError(error, message);
-        document.getElementById('continue').hidden = false;
+        $('status').hidden = true;
+        showError($('error'), message);
+        $('continue').hidden = false;
+      }
+    }
+
+    try {
+      if (store.provider === 'cloud') await store.completeSignIn();
+      if (reset && store.provider === 'cloud') {
+        $('status').hidden = true;
+        const form = $('password-form');
+        form.hidden = false;
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          try {
+            await store.setNewPassword(new FormData(form).get('password'));
+            form.hidden = true;
+            $('status').hidden = false;
+            await finish();
+          } catch (e) {
+            showError($('error'), e.message);
+          }
+        });
+      } else {
+        await finish();
       }
     } catch (e) {
-      document.getElementById('status').hidden = true;
-      showError(error, e.message);
-      document.getElementById('retry').hidden = false;
+      $('status').hidden = true;
+      showError($('error'), e.message);
+      $('retry').hidden = false;
     }
   </script>
 </head>
@@ -35,6 +61,14 @@
   </header>
   <main class="core-page core-narrow">
     <p class="core-lead" id="status">Влизаме…</p>
+    <form class="core-card core-form" id="password-form" hidden>
+      <h1>Нова парола</h1>
+      <label class="field">Нова парола
+        <input name="password" type="password" autocomplete="new-password" minlength="8" required>
+        <span class="core-note">Поне 8 знака.</span>
+      </label>
+      <button class="button button-primary" type="submit">Запази паролата</button>
+    </form>
     <p class="core-error" id="error" role="alert" hidden></p>
     <p id="continue" hidden><a class="button button-primary" href="../../app/">Продължи</a></p>
     <p id="retry" hidden><a class="button button-primary" href="../../login/">Към входа</a></p>

@@ -1,15 +1,14 @@
-// Cloud provider: sign-in with Amazon Cognito, data in Supabase (EU).
-// Supabase trusts the Cognito access token (third-party auth); all row access goes through RLS
-// with current_auth_id() = the token's sub. Table and RPC names follow server/migrations.
-import {
-  initCognito, redirectToLogin, handleCallback, accessToken, profile, signOutRedirect,
-} from '../auth-cognito.js';
-
+// Cloud provider: Supabase (EU, Frankfurt) for both sign-in (Supabase Auth) and data.
+// Sign-in: e-mail + password, Google, Facebook; OAuth and e-mail links come back to /auth/callback/ (PKCE).
+// All row access goes through RLS with current_auth_id() = the token's sub (the Supabase user id).
+// Table and RPC names follow server/migrations. Same API and return shapes as indexeddb.js.
 export const name = 'cloud';
 
 const SUPABASE_ESM = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
 const USER_KEY = 'la.cloud.user';
 const CHILD_COLUMNS = 'id, name, city, school_choice, school_id, grade, avatar';
+const PASSWORD_MIN = 8;
+const SOCIAL_PROVIDERS = ['google', 'facebook'];
 
 let config = null;
 let siteRoot = '';
@@ -18,13 +17,15 @@ let clientPromise = null;
 export function init(options) {
   config = options.config;
   siteRoot = options.siteRoot;
-  initCognito({ domain: config.cognito.domain, clientId: config.cognito.clientId, siteRoot: options.siteRoot });
 }
+
+const callbackUrl = () => `${siteRoot}auth/callback/`;
 
 function client() {
   clientPromise ??= import(SUPABASE_ESM).then(({ createClient }) =>
     createClient(config.supabase.url, config.supabase.anonKey, {
-      accessToken: async () => (await accessToken()) ?? null,
+      // The ?code= / ?token_hash= on /auth/callback/ is handled by completeSignIn(), not on every page load.
+      auth: { flowType: 'pkce', detectSessionInUrl: false, persistSession: true, autoRefreshToken: true },
     }));
   return clientPromise;
 }
@@ -39,9 +40,55 @@ function check({ data, error }, message = 'Нещо се обърка. Пров�
   return data;
 }
 
+const USER_EXISTS = 'Вече има профил с този имейл. Влез с него.';
+const LINK_EXPIRED = 'Връзката от писмото е изтекла или вече е използвана. Поискай нова.';
+
+// Supabase Auth error codes → short messages for the parent.
+const AUTH_MESSAGES = {
+  invalid_credentials: 'Грешен имейл или парола.',
+  email_not_confirmed: 'Имейлът още не е потвърден. Отвори писмото от LevAcademy и натисни връзката в него.',
+  user_already_exists: USER_EXISTS,
+  email_exists: USER_EXISTS,
+  weak_password: `Паролата е твърде слаба. Избери поне ${PASSWORD_MIN} знака, които не се отгатват лесно.`,
+  same_password: 'Новата парола трябва да е различна от старата.',
+  email_address_invalid: 'Напиши истински имейл.',
+  over_email_send_rate_limit: 'Изпратихме твърде много писма. Опитай пак след малко.',
+  over_request_rate_limit: 'Твърде много опити. Изчакай малко и опитай пак.',
+  otp_expired: LINK_EXPIRED,
+  flow_state_expired: 'Входът продължи твърде дълго. Започни отначало.',
+  signup_disabled: 'Регистрацията в момента е спряна.',
+  provider_disabled: 'Този начин за вход още не е включен.',
+  email_provider_disabled: 'Входът с имейл още не е включен.',
+};
+
+function authError(error, fallback) {
+  console.error(error);
+  const text = String(error?.message || '');
+  const message = AUTH_MESSAGES[error?.code]
+    || (/invalid login credentials/i.test(text) && AUTH_MESSAGES.invalid_credentials)
+    || (/email not confirmed/i.test(text) && AUTH_MESSAGES.email_not_confirmed)
+    || (/already (been )?registered/i.test(text) && USER_EXISTS)
+    || fallback;
+  return new Error(message, { cause: error });
+}
+
+function cleanEmail(email) {
+  const value = String(email || '').trim().toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(value)) throw new Error('Напиши истински имейл.');
+  return value;
+}
+
+function checkNewPassword(password) {
+  const value = String(password || '');
+  if (value.length < PASSWORD_MIN) throw new Error(`Паролата трябва да е поне ${PASSWORD_MIN} знака.`);
+  return value;
+}
+
 function displayName(row) {
   return row.display_name || String(row.email || '').split('@')[0];
 }
+
+const publicUser = ({ id, email, displayName: name }) => ({ id, email, displayName: name });
 
 function toChild(row) {
   return {
@@ -85,22 +132,36 @@ function toAward(row) {
   };
 }
 
+// The name from sign-up (display_name) or from Google/Facebook (full_name, name).
+function metadataName(authUser) {
+  const data = authUser.user_metadata || {};
+  return String(data.display_name || data.full_name || data.name || '').trim() || null;
+}
+
 // ensure_user creates the users row (and a first family) on the first sign-in; idempotent.
-async function ensureUser(me) {
+// The e-mail comes from the token on the server; only the display name is sent.
+async function ensureUser(authUser) {
   const supabase = await client();
-  const row = check(await supabase.rpc('ensure_user', { p_email: me.email, p_display_name: me.name }),
+  const row = check(await supabase.rpc('ensure_user', { p_display_name: metadataName(authUser) }),
     'Не успяхме да те впишем. Опитай пак.');
-  const user = { id: row.id, authId: me.sub, email: row.email, displayName: displayName(row) };
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  const user = { id: row.id, authId: authUser.id, email: row.email, displayName: displayName(row) };
+  try { localStorage.setItem(USER_KEY, JSON.stringify(user)); } catch { /* private mode */ }
   return user;
 }
 
+// The signed-in Supabase user from the stored session (refreshed by supabase-js when needed), or null.
+async function sessionUser() {
+  const supabase = await client();
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user ?? null;
+}
+
 async function me() {
-  const signedIn = await profile();
-  if (!signedIn) return null;
+  const authUser = await sessionUser();
+  if (!authUser) return null;
   let cached = null;
   try { cached = JSON.parse(localStorage.getItem(USER_KEY) || 'null'); } catch { /* ignore */ }
-  return cached && cached.authId === signedIn.sub ? cached : ensureUser(signedIn);
+  return cached && cached.authId === authUser.id ? cached : ensureUser(authUser);
 }
 
 async function requireMe() {
@@ -126,21 +187,107 @@ async function familyId() {
 
 export async function currentUser() {
   const user = await me();
-  return user ? { id: user.id, email: user.email, displayName: user.displayName } : null;
+  return user ? publicUser(user) : null;
 }
 
-export async function signIn({ mode = 'login' } = {}) {
-  await redirectToLogin(mode);
+// The /login/ and /register/ forms pass { mode, email, password, displayName };
+// the social buttons pass { provider: 'google' | 'facebook' } and the browser leaves for that provider.
+// Resolves to the user, or to { notice } when the sign-in is not finished yet.
+export async function signIn({ mode = 'login', email, password, displayName: name, provider } = {}) {
+  const supabase = await client();
+
+  if (provider) {
+    if (!SOCIAL_PROVIDERS.includes(provider)) throw new Error('Непознат начин за вход.');
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: callbackUrl(), skipBrowserRedirect: true },
+    });
+    if (error) throw authError(error, 'Входът не успя. Опитай пак.');
+    location.assign(data.url);
+    return { notice: 'Отваряме входа…' };
+  }
+
+  const address = cleanEmail(email);
+  if (mode === 'register') {
+    const pass = checkNewPassword(password);
+    const cleanName = String(name || '').trim();
+    if (!cleanName) throw new Error('Напиши името си.');
+    const { data, error } = await supabase.auth.signUp({
+      email: address,
+      password: pass,
+      options: { data: { display_name: cleanName }, emailRedirectTo: callbackUrl() },
+    });
+    if (error) throw authError(error, 'Регистрацията не успя. Опитай пак.');
+    // With e-mail confirmation on, an existing address comes back as a user without identities.
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      throw new Error(USER_EXISTS);
+    }
+    if (!data.session) {
+      return { notice: `Изпратихме ти имейл за потвърждение на ${address}. Отвори го и натисни връзката в него, после влез.` };
+    }
+    return publicUser(await ensureUser(data.user));
+  }
+
+  if (!password) throw new Error('Напиши паролата си.');
+  const { data, error } = await supabase.auth.signInWithPassword({ email: address, password: String(password) });
+  if (error) throw authError(error, 'Входът не успя. Опитай пак.');
+  return publicUser(await ensureUser(data.user));
 }
 
+// On /auth/callback/: Google/Facebook and e-mail links come back with ?code= (PKCE, same browser only)
+// or ?token_hash=&type= (from our e-mail templates, works in any browser). Returns the user.
 export async function completeSignIn() {
-  await handleCallback();
-  return ensureUser(await profile()).then(({ id, email, displayName }) => ({ id, email, displayName }));
+  const supabase = await client();
+  const query = new URLSearchParams(location.search);
+  const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const errorCode = query.get('error_code') || hash.get('error_code');
+  if (errorCode || query.get('error') || hash.get('error')) {
+    console.error(query.get('error_description') || hash.get('error_description'));
+    throw new Error(errorCode === 'otp_expired' ? LINK_EXPIRED : 'Входът беше прекъснат. Опитай пак.');
+  }
+
+  let result = null;
+  if (query.get('token_hash')) {
+    result = await supabase.auth.verifyOtp({ token_hash: query.get('token_hash'), type: query.get('type') || 'email' });
+    if (result.error) throw authError(result.error, LINK_EXPIRED);
+  } else if (query.get('code')) {
+    result = await supabase.auth.exchangeCodeForSession(query.get('code'));
+    if (result.error) {
+      throw authError(result.error, 'Входът не успя. Връзката трябва да се отвори в браузъра, в който е започнал входът. '
+        + 'Ако потвърждаваше имейла си, той вече е потвърден: влез с паролата си.');
+    }
+  }
+  // The one-time code is spent: take it out of the address bar.
+  history.replaceState(null, '', location.pathname + (query.has('reset') ? '?reset=1' : ''));
+
+  const authUser = result?.data?.user ?? await sessionUser();
+  if (!authUser) throw new Error('Входът не успя. Започни отначало от страницата за вход.');
+  return publicUser(await ensureUser(authUser));
 }
 
+// „Забравена парола?“: Supabase sends a link to /auth/callback/?reset=1. Resolves to { notice }.
+export async function resetPassword(email) {
+  const address = cleanEmail(email);
+  const supabase = await client();
+  const { error } = await supabase.auth.resetPasswordForEmail(address, { redirectTo: `${callbackUrl()}?reset=1` });
+  if (error) throw authError(error, 'Не успяхме да изпратим писмото. Опитай пак.');
+  return { notice: `Ако има профил с ${address}, изпратихме писмо с връзка за нова парола.` };
+}
+
+// On /auth/callback/?reset=1, after completeSignIn().
+export async function setNewPassword(password) {
+  const pass = checkNewPassword(password);
+  const supabase = await client();
+  const { error } = await supabase.auth.updateUser({ password: pass });
+  if (error) throw authError(error, 'Не успяхме да сменим паролата. Опитай пак.');
+}
+
+// Signs out only this device ('local'): a parent signing out on the phone keeps the child's tablet signed in.
 export async function signOut() {
-  localStorage.removeItem(USER_KEY);
-  signOutRedirect();
+  try { localStorage.removeItem(USER_KEY); } catch { /* nothing to clear */ }
+  const supabase = await client();
+  const { error } = await supabase.auth.signOut({ scope: 'local' });
+  if (error) throw authError(error, 'Не успяхме да излезем. Провери интернета и опитай пак.');
 }
 
 // Family

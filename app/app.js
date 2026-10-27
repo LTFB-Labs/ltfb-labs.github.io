@@ -274,7 +274,7 @@ function wire() {
   });
   $('sign-out').addEventListener('click', async () => {
     await store.signOut();
-    if (store.provider === 'local') goTo('login/');
+    goTo('login/');
   });
 
   $('add-child').addEventListener('click', () => openChildDialog());

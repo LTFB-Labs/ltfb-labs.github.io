@@ -27,6 +27,12 @@ h2 { font-size: 1.2rem; margin: 28px 0 12px; }
 .core-switch { margin-top: 20px; text-align: center; }
 .core-form > .core-note { margin: 0; }
 .core-card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; }
+.core-card + .core-card { margin-top: 16px; }
+.core-notice { color: var(--ink); font-weight: 600; background: var(--accent-light); border-radius: var(--radius-small); padding: 10px 12px; }
+.core-text-button {
+  align-self: center; min-height: 48px; padding: 0 12px; border: 0; background: none;
+  color: var(--accent-dark); font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer;
+}
 
 /* Buttons */
 .button {
@@ -47,7 +53,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .core-form { display: flex; flex-direction: column; gap: 16px; }
 .field { display: flex; flex-direction: column; gap: 6px; font-weight: 600; border: 0; padding: 0; margin: 0; min-width: 0; }
 .field legend { padding: 0; margin-bottom: 6px; }
-.field input[type="text"], .field input[type="email"], .field input[type="search"], .field select {
+.field input[type="text"], .field input[type="email"], .field input[type="password"], .field input[type="search"], .field select {
   min-height: 48px; padding: 10px 12px; border: 2px solid var(--line); border-radius: var(--radius-small);
   background: var(--surface); color: var(--ink); font-weight: 400; width: 100%;
 }
