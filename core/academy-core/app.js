@@ -38,7 +38,9 @@ function connectToShell() {
                 call.ok(message.result);
         }
     });
-    const send = (message) => shell.postMessage(message, '*');
+    // The secret from this frame's address: a page the frame goes to later cannot know it.
+    const secret = new URLSearchParams(location.search).get('t') ?? '';
+    const send = (message) => shell.postMessage({ ...message, t: secret }, '*');
     const call = (method, params) => new Promise((ok, fail) => {
         const id = nextId++;
         pending.set(id, { ok: ok, fail });
@@ -104,7 +106,7 @@ export async function startFrame(root) {
     catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.error('academy-core:', error);
-        window.parent.postMessage({ ac: AC, type: 'fail', message }, '*');
+        window.parent.postMessage({ ac: AC, type: 'fail', message, t: new URLSearchParams(location.search).get('t') ?? '' }, '*');
         root.textContent = 'Апът не е достъпен.';
     }
 }

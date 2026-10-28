@@ -38,5 +38,8 @@ export interface ResponseMessage {
     result?: unknown;
     error?: string;
 }
-export type Message = HelloMessage | InitMessage | ChangeMessage | FailMessage | RequestMessage | ResponseMessage;
+export type Message = (HelloMessage | InitMessage | ChangeMessage | FailMessage | RequestMessage | ResponseMessage) & {
+    /** The frame's secret from its own address (?t=): only the page the shell opened knows it, also after a reload. */
+    t?: string;
+};
 export declare function isMessage(data: unknown): data is Message;

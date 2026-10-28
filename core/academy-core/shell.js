@@ -18,7 +18,9 @@ export function mountApp(options) {
     frame.setAttribute('sandbox', SANDBOX);
     frame.setAttribute('allow', ['fullscreen', 'autoplay', ...devices].join('; '));
     const entry = new URL(app.manifest.entry, app.url).href;
-    frame.src = `${frameUrl}?app=${encodeURIComponent(app.id)}&entry=${encodeURIComponent(entry)}`;
+    // A secret in the frame's address: the app's page keeps it when it reloads, another page in the frame cannot know it.
+    const secret = crypto.randomUUID();
+    frame.src = `${frameUrl}?app=${encodeURIComponent(app.id)}&t=${secret}&entry=${encodeURIComponent(entry)}`;
     const post = (message) => frame.contentWindow?.postMessage(message, '*');
     async function answer(request) {
         const params = (request.params ?? {});
@@ -49,19 +51,8 @@ export function mountApp(options) {
                 throw new ContractError(`Непознато извикване „${String(request.method)}“.`);
         }
     }
-    // The frame's window stays the same when it goes to another page: after the first page, nothing is answered.
-    let loads = 0;
-    let left = false;
-    frame.addEventListener('load', () => {
-        loads += 1;
-        if (loads > 1 && !left) {
-            left = true;
-            console.warn(`${app.id}: рамката отиде на друга страница; тя не получава нищо от ядрото.`);
-            handlers.onFail?.(app.id, 'navigated');
-        }
-    });
     function onMessage(event) {
-        if (left || event.source !== frame.contentWindow || !isMessage(event.data))
+        if (event.source !== frame.contentWindow || !isMessage(event.data) || event.data.t !== secret)
             return;
         const message = event.data;
         if (message.type === 'hello')

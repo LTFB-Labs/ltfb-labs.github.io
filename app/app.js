@@ -167,8 +167,9 @@ async function openApp(route, inner, mode) {
     location.hash = '#/who';
     return;
   }
-  // The same app for the same child stays; the bar's link to it (no inner path) opens it from its start again.
-  if (opened && opened.route === route && opened.childId === child.id && (inner === opened.inner || inner)) return;
+  // The same app for the same child stays while the path is the one the app itself set (core.navigate). A path
+  // changed from outside (an address, „назад“, the bar's link to the app) opens the app again at that path.
+  if (opened && opened.route === route && opened.childId === child.id && inner === opened.inner) return;
   const app = (await appsFor(child)).find((a) => a.manifest.route === route);
   if (!app) {
     show(null);
@@ -178,6 +179,7 @@ async function openApp(route, inner, mode) {
   closeApp();
   $('stage').querySelector('.home-frame')?.remove();
   showStage();
+  let queue = Promise.resolve();
   const mounted = mountApp({
     container: $('stage'),
     app,
@@ -191,7 +193,12 @@ async function openApp(route, inner, mode) {
         toast(`Нова значка: ${row.name}`);
         return row;
       },
-      appData: (appId, op, params) => store.appData(child.id, appId, op, params),
+      // One after another: a write the app sent just before it reloaded ends before its next read.
+      appData: (appId, op, params) => {
+        const next = queue.then(() => store.appData(child.id, appId, op, params));
+        queue = next.catch(() => {});
+        return next;
+      },
       navigate: (appId, next) => {
         if (opened) opened.inner = next;
         history.replaceState(null, '', `#/${route}${next ? `/${next}` : ''}`);

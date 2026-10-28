@@ -27,7 +27,8 @@
     "path": "bg-time-traveler/",
     "name": "Пътешествие във времето",
     "about": "Дърпай слайдъра и виж как се променя България от 600 г. до днес.",
-    "avatar": 12
+    "avatar": 12,
+    "contract": 2
   },
   {
     "id": "big-bang-to-today",
