@@ -1,4 +1,4 @@
-// The store: one API for every core page and for core/levacademy.js.
+// The store: one API for every core page and for the shell, which answers the apps from it.
 // It picks the provider (indexeddb or cloud) from config.js; the device settings (mode, current child)
 // always live in this browser's localStorage, whatever the provider.
 import { config } from './config.js';
@@ -12,7 +12,14 @@ function cloudReady() {
   return config.provider === 'cloud' && Boolean(supabase?.url && supabase?.anonKey);
 }
 
-const provider = cloudReady() ? cloud : indexeddb;
+// On this computer (localhost) the provider can be forced for trying things out: localStorage la.dev.provider = 'indexeddb'.
+function devProvider() {
+  if (!['localhost', '127.0.0.1'].includes(location.hostname)) return null;
+  try { return localStorage.getItem('la.dev.provider'); } catch { return null; }
+}
+
+const forced = devProvider();
+const provider = forced === 'indexeddb' ? indexeddb : forced === 'cloud' || cloudReady() ? cloud : indexeddb;
 provider.init({ config, siteRoot });
 
 const MODE_KEY = 'la.deviceMode';
@@ -47,6 +54,9 @@ function normalizeChild(child) {
   if (!Number.isInteger(avatar) || avatar < 1 || avatar > 12) throw new Error('Избери картинка.');
   return { ...(child.id ? { id: child.id } : {}), name, city, schoolChoice, schoolId, grade, avatar };
 }
+
+const iconUrl = (icon) => (String(icon).startsWith('core:') ? `${siteRoot}core/badges/${String(icon).slice(5)}.svg` : icon);
+const withIconUrl = (badge) => ({ ...badge, icon: iconUrl(badge.icon) });
 
 function broadcast(type) {
   if (typeof BroadcastChannel === 'undefined') return;
@@ -107,7 +117,9 @@ export const store = {
   },
   async setDeviceMode(mode) {
     if (mode !== 'parent' && mode !== 'child' && mode !== null) throw new Error('Непознат режим.');
+    if (readKey(MODE_KEY) === mode) return;
     writeKey(MODE_KEY, mode);
+    broadcast('mode-changed');
   },
   async currentChild() {
     const id = readKey(CHILD_KEY);
@@ -121,10 +133,19 @@ export const store = {
     broadcast('child-changed');
   },
 
-  // History
-  saveActivity: (childId, app, activity) => provider.saveActivity(childId, app, activity),
-  activities: (childId, filter = {}) => provider.activities(childId, filter),
-  award: (childId, app, award) => provider.award(childId, app, award),
-  awards: (childId) => provider.awards(childId),
-  percentile: (childId, app, topic) => provider.percentile(childId, app, topic),
+  // Parent mode on the child's tablet
+  verifyPassword: (password) => provider.verifyPassword(password),
+
+  // Badges: the child's trophies, given by the apps through the shell. `core:<name>` icons point to core/badges/.
+  async badges(childId) {
+    return (await provider.badges(childId)).map(withIconUrl);
+  },
+  async grantBadge(childId, app, badge) {
+    const row = withIconUrl(await provider.grantBadge(childId, app, badge));
+    broadcast('badges-changed');
+    return row;
+  },
+
+  // The apps' own data, per app and child: op is get | all | put | putMany | remove | clear.
+  appData: (childId, app, op, params) => provider.appData(childId, app, op, params),
 };

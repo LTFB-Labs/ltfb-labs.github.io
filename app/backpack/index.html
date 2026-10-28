@@ -9,45 +9,47 @@
   <link rel="icon" href="../../img/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../../shared/tokens.css">
   <link rel="stylesheet" href="../../core/core.css">
-  <link rel="stylesheet" href="backpack.css">
-  <script type="module" src="backpack.js"></script>
+  <link rel="stylesheet" href="../backpack/backpack.css">
+  <script type="module" src="../backpack/backpack.js"></script>
 </head>
-<body>
-  <header class="core-bar">
-    <a class="core-brand" href="../"><img src="../../img/logo.svg" alt="" width="36" height="36"><span>LevAcademy</span></a>
-    <a class="button button-small" href="../">← Назад</a>
-  </header>
+<body data-view="backpack">
+  <header id="shell-bar"></header>
 
   <main class="core-page">
     <p class="core-lead" id="loading">Зареждаме…</p>
     <p class="core-error" id="page-error" role="alert" hidden></p>
 
-    <nav class="child-switch" id="child-switch" aria-label="Чия раница" hidden></nav>
+    <section id="parent-only" hidden>
+      <h1>Таблото е за родителя</h1>
+      <p class="core-lead">Превключи на режим „Родител“ от менюто горе вдясно, за да го видиш.</p>
+    </section>
 
     <section id="no-child" hidden>
       <h1>Кой учи днес?</h1>
-      <p class="core-lead">Избери дете, за да видиш раницата му.</p>
-      <a class="button button-primary" href="../">Избери дете</a>
+      <p class="core-lead" id="no-child-text">Избери дете, за да видиш раницата му.</p>
+      <a class="button button-primary" href="../#/who" id="no-child-link">Избери дете</a>
     </section>
 
-    <section id="backpack" hidden>
+    <section id="card" hidden>
+      <nav class="child-switch" id="child-switch" aria-label="Дете" hidden></nav>
       <div class="backpack-hero">
         <img id="hero-avatar" alt="" width="120" height="120">
         <div>
           <h1 id="hero-title">Раницата</h1>
           <div class="backpack-totals">
-            <span class="total"><b id="total-points">0</b> <span id="points-word">точки</span></span>
-            <span class="total"><b id="total-medals">0</b> <span id="medals-word">медала</span></span>
+            <span class="total"><b id="total-badges">0</b> <span id="badges-word">значки</span></span>
           </div>
         </div>
       </div>
 
+      <h2>Значки</h2>
       <div class="backpack-empty" id="empty" hidden>
-        <p class="backpack-empty-title">Раницата още е празна.</p>
-        <p class="core-lead">Реши тест или упражнение в някой ап и тук ще се появят медалите и точките ти.</p>
-        <a class="button button-primary" href="../">Към апите</a>
+        <p class="backpack-empty-title">Още няма значки.</p>
+        <p class="core-lead">Апите дават значки за успехи. Тук ще се пазят завинаги.</p>
       </div>
+      <ul class="trophies" id="trophies"></ul>
 
+      <h2>Апи</h2>
       <div class="backpack-apps" id="apps"></div>
     </section>
   </main>

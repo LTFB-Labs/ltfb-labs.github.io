@@ -6,8 +6,9 @@
 export const name = 'indexeddb';
 
 const DB_NAME = 'levacademy';
-const DB_VERSION = 1;
-const STORES = ['users', 'families', 'members', 'invites', 'children', 'activities', 'awards'];
+const DB_VERSION = 2;
+// activities and awards are the old history: kept only so removing a child clears them too.
+const STORES = ['users', 'families', 'members', 'invites', 'children', 'activities', 'awards', 'badges', 'appData'];
 const SESSION_KEY = 'la.local.session';
 const OLD_DB_KEY = 'la.local.db';          // the earlier localStorage provider; copied over once
 const INVITE_DAYS = 7;
@@ -249,6 +250,8 @@ export async function removeChild(id) {
       children: [id],
       activities: db.activities.filter((a) => a.childId === id).map((a) => a.id),
       awards: db.awards.filter((a) => a.childId === id).map((a) => a.id),
+      badges: db.badges.filter((b) => b.childId === id).map((b) => b.id),
+      appData: db.appData.filter((r) => r.childId === id).map((r) => r.id),
     },
   });
 }
@@ -301,40 +304,59 @@ export async function acceptInvite(token) {
   return invite.familyId;
 }
 
-/* ---------- History ---------- */
+/* ---------- Parent mode ---------- */
 
-export async function saveActivity(childId, app, activity) {
-  requireChild(await load(), childId);
-  const row = { ...activity, id: newId(), childId, app, contract: 1 };
-  await write({ put: { activities: [row] } });
-  return row;
+export async function verifyPassword(password) {
+  const user = requireUser(await load());
+  if (!password) throw new Error('Напиши паролата си.');
+  if (!user.password) throw new Error('Грешна парола.');
+  const { hash } = await hashPassword(String(password), user.password.salt);
+  if (hash !== user.password.hash) throw new Error('Грешна парола.');
 }
 
-export async function activities(childId, { app, since } = {}) {
+/* ---------- Badges ---------- */
+
+const publicBadge = ({ id, childId, ...badge }) => badge;
+
+export async function badges(childId) {
   const db = await load();
   requireChild(db, childId);
-  const sinceIso = since ? new Date(since).toISOString() : null;
-  return db.activities
-    .filter((a) => a.childId === childId && (!app || a.app === app) && (!sinceIso || (a.startedAt || '') >= sinceIso))
-    .sort((a, b) => String(b.startedAt || '').localeCompare(String(a.startedAt || '')));
+  return db.badges
+    .filter((b) => b.childId === childId)
+    .sort((a, b) => b.earnedAt.localeCompare(a.earnedAt))
+    .map(publicBadge);
 }
 
-export async function award(childId, app, { kind, code, value = null, topic = null }) {
-  requireChild(await load(), childId);
-  const row = { id: newId(), childId, app, kind, code, value, topic, earnedAt: now() };
-  await write({ put: { awards: [row] } });
-  return row;
-}
-
-export async function awards(childId) {
+export async function grantBadge(childId, app, badge) {
   const db = await load();
   requireChild(db, childId);
-  return db.awards
-    .filter((a) => a.childId === childId)
-    .sort((a, b) => b.earnedAt.localeCompare(a.earnedAt));
+  const id = `${childId}:${app}:${badge.code}`;
+  const existing = db.badges.find((b) => b.id === id);
+  if (existing) return publicBadge(existing);
+  const row = { id, childId, app, code: badge.code, name: badge.name, icon: badge.icon,
+    description: badge.description, reason: badge.reason, earnedAt: now() };
+  await write({ put: { badges: [row] } });
+  return publicBadge(row);
 }
 
-// The comparison with other children needs many families: never available locally.
-export async function percentile() {
-  return null;
+/* ---------- The apps' own data ---------- */
+
+export async function appData(childId, app, op, { collection, id, record, records } = {}) {
+  const db = await load();
+  requireChild(db, childId);
+  const key = (recordId) => `${childId}:${app}:${collection}:${recordId}`;
+  const mine = db.appData.filter((r) => r.childId === childId && r.app === app && r.collection === collection);
+  switch (op) {
+    case 'get': return db.appData.find((r) => r.id === key(id))?.data;
+    case 'all': return mine.sort((a, b) => a.updatedAt.localeCompare(b.updatedAt)).map((r) => r.data);
+    case 'put':
+    case 'putMany': {
+      const list = op === 'put' ? [record] : records || [];
+      await write({ put: { appData: list.map((r) => ({ id: key(r.id), childId, app, collection, data: r, updatedAt: now() })) } });
+      return undefined;
+    }
+    case 'remove': await write({ remove: { appData: [key(id)] } }); return undefined;
+    case 'clear': await write({ remove: { appData: mine.map((r) => r.id) } }); return undefined;
+    default: throw new Error(`Непозната операция ${op}.`);
+  }
 }

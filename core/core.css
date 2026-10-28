@@ -18,6 +18,56 @@ h2 { font-size: 1.2rem; margin: 28px 0 12px; }
 .core-bar-child img { width: 36px; height: 36px; border-radius: 50%; background: var(--surface-2); }
 .core-bar-child span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* The shell's bar: the same on every /app/ page and while an app is open */
+.shell-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  height: var(--shell-bar-height); padding: 0 12px; background: var(--surface); border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 20;
+}
+:root { --shell-bar-height: 60px; }
+.shell-brand { display: flex; align-items: center; gap: 8px; color: var(--ink); text-decoration: none; font-weight: 700; font-size: 1.1rem; min-height: 48px; }
+.shell-bar-end { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.shell-drop { position: relative; }
+.shell-icon-button, .shell-person-button {
+  display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 4px 12px 4px 6px;
+  border: 2px solid transparent; border-radius: 999px; background: none; color: var(--ink); font: inherit; font-weight: 600; cursor: pointer;
+}
+.shell-icon-button { padding: 4px 12px; }
+.shell-icon-button:hover, .shell-person-button:hover, [aria-expanded="true"].shell-icon-button, [aria-expanded="true"].shell-person-button { background: var(--accent-light); }
+.shell-grid-icon { width: 20px; height: 20px; background:
+  radial-gradient(circle, var(--accent) 3px, transparent 3.5px) 0 0 / 10px 10px; }
+.shell-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--surface-2); flex: none; object-fit: cover; }
+.shell-initials { display: grid; place-items: center; background: var(--accent); color: var(--on-accent); font-weight: 700; }
+.shell-label { max-width: 14ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shell-drop-panel {
+  position: absolute; right: 0; top: calc(100% + 6px); min-width: 240px; max-width: min(360px, calc(100vw - 24px));
+  display: flex; flex-direction: column; gap: 2px; padding: 8px;
+  background: var(--surface); border-radius: var(--radius); box-shadow: 0 8px 28px rgba(18, 48, 47, .18); z-index: 30;
+}
+.shell-menu-title { display: flex; flex-direction: column; margin: 0; padding: 6px 10px 10px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.shell-menu-title span { color: var(--muted); font-size: .9rem; overflow-wrap: anywhere; }
+.shell-menu-item, .shell-app {
+  display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 10px; border: 0; border-radius: var(--radius-small);
+  background: none; color: var(--ink); font: inherit; font-weight: 600; text-align: left; text-decoration: none; cursor: pointer;
+}
+.shell-menu-item:hover, .shell-app:hover { background: var(--accent-light); }
+.shell-app img { width: 40px; height: 40px; border-radius: 10px; background: var(--surface-2); object-fit: cover; }
+.shell-app.is-active { background: var(--accent-light); color: var(--accent-dark); }
+
+/* What is under the bar: the home page or an app, the whole height */
+.shell-toast {
+  position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 10;
+  padding: 12px 18px; border-radius: 999px; background: var(--ink); color: #fff; font-weight: 700; box-shadow: var(--shadow);
+}
+.shell-stage { position: relative; height: calc(100dvh - var(--shell-bar-height)); }
+.shell-stage > iframe, .app-frame { display: block; width: 100%; height: 100%; border: 0; background: var(--surface); }
+
+@media (max-width: 520px) {
+  .shell-label { display: none; }
+  .shell-brand span { display: none; }
+  .shell-person-button { padding: 4px; }
+}
+
 /* Page */
 .core-page { max-width: var(--page-width); margin: 0 auto; padding: 16px 16px 48px; }
 .core-narrow { max-width: 460px; }
@@ -25,6 +75,7 @@ h2 { font-size: 1.2rem; margin: 28px 0 12px; }
 .core-note { color: var(--muted); font-size: .95rem; }
 .core-error { color: var(--danger); font-weight: 600; background: #fdecec; border-radius: var(--radius-small); padding: 10px 12px; }
 .core-switch { margin-top: 20px; text-align: center; }
+.core-consent { margin: 16px 0 0; color: var(--muted); font-size: .95rem; text-align: center; }
 .core-form > .core-note { margin: 0; }
 .core-card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; }
 .core-card + .core-card { margin-top: 16px; }

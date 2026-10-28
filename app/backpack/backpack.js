@@ -1,9 +1,14 @@
-// /app/backpack/: the child's medals and points from every app, grouped by app.
-// Child mode: the picked child. Parent mode: any child of the family (switcher on top).
+// /app/backpack/ and /app/dashboard/: the child's card. Earned badges only, as trophies with their story
+// (picture, name, why, when, which app), newest first; then the child's apps with „Отвори“. Progress is the apps':
+// they show it themselves. Backpack: the picked child in child mode, any child in parent mode.
+// Dashboard (<body data-view="dashboard">): parent mode only.
 import { store } from '../../core/store.js';
 import { goTo, laRoot, showError } from '../../core/ui.js';
+import { shellBar } from '../../core/shell-bar.js';
+import { appsFor, contractApps, iconOf } from '../../core/apps.js';
 
 const $ = (id) => document.getElementById(id);
+const dashboard = document.body.dataset.view === 'dashboard';
 
 function el(tag, props = {}, ...children) {
   const node = Object.assign(document.createElement(tag), props);
@@ -12,71 +17,35 @@ function el(tag, props = {}, ...children) {
 }
 
 const avatarSrc = (n) => `${laRoot()}avatars/${String(n).padStart(2, '0')}.webp`;
-const dateText = (iso) => new Date(iso).toLocaleDateString('bg-BG', { day: 'numeric', month: 'long' });
+const dateText = (iso) => new Date(iso).toLocaleDateString('bg-BG', { day: 'numeric', month: 'long', year: 'numeric' });
+const badgesWord = (n) => (n === 1 ? 'значка' : 'значки');
 
-async function loadApps() {
-  try {
-    const response = await fetch(`${laRoot()}apps.json`);
-    return response.ok ? await response.json() : [];
-  } catch {
-    return [];
-  }
-}
-
-// The app's own description (levacademy.json) names its medals: { code, name, icon? }. Missing file = codes only.
-async function loadMedals(app) {
-  if (!app?.path) return [];
-  try {
-    const response = await fetch(`${laRoot()}${app.path}levacademy.json`);
-    if (!response.ok) return [];
-    const info = await response.json();
-    return (info.medals || []).map((m) => ({ ...m, icon: m.icon ? `${laRoot()}${app.path}${m.icon}` : null }));
-  } catch {
-    return [];
-  }
-}
-
-async function renderBackpack(child) {
+async function renderCard(child, mode) {
   $('hero-avatar').src = avatarSrc(child.avatar);
-  $('hero-title').textContent = `Раницата на ${child.name}`;
-  const [awards, apps] = await Promise.all([store.awards(child.id), loadApps()]);
+  $('hero-title').textContent = dashboard ? child.name : `Раницата на ${child.name}`;
+  const [badges, allApps, childApps] = await Promise.all([store.badges(child.id), contractApps(), appsFor(child)]);
+  const appName = (id) => allApps.find((a) => a.id === id)?.manifest.name || id;
 
-  const byApp = new Map();
-  for (const award of awards) {
-    if (!byApp.has(award.app)) byApp.set(award.app, []);
-    byApp.get(award.app).push(award);
-  }
-  const pointsOf = (list) => list.filter((a) => a.kind === 'points').reduce((sum, a) => sum + (Number(a.value) || 0), 0);
-  const points = pointsOf(awards);
-  const medalCount = awards.filter((a) => a.kind === 'medal').length;
-  $('total-points').textContent = String(points);
-  $('points-word').textContent = points === 1 ? 'точка' : 'точки';
-  $('total-medals').textContent = String(medalCount);
-  $('medals-word').textContent = medalCount === 1 ? 'медал' : 'медала';
-  $('empty').hidden = awards.length > 0;
+  $('total-badges').textContent = String(badges.length);
+  $('badges-word').textContent = badgesWord(badges.length);
+  $('empty').hidden = badges.length > 0;
+  $('trophies').replaceChildren(...badges.map((badge) => el('li', { className: 'trophy' },
+    el('img', { src: badge.icon, alt: '', width: 72, height: 72 }),
+    el('div', { className: 'trophy-text' },
+      el('strong', { textContent: badge.name }),
+      badge.reason || badge.description ? el('span', { textContent: badge.reason || badge.description }) : null,
+      el('span', { className: 'trophy-meta', textContent: `${appName(badge.app)} · ${dateText(badge.earnedAt)}` })))));
 
-  const sections = await Promise.all([...byApp].map(async ([appId, list]) => {
-    const app = apps.find((a) => a.id === appId);
-    const medalInfo = await loadMedals(app);
-    const medals = list.filter((a) => a.kind === 'medal');
-    return el('section', { className: 'backpack-app' },
-      el('div', { className: 'backpack-app-head' },
-        app?.avatar ? el('img', { src: avatarSrc(app.avatar), alt: '', width: 56, height: 56 }) : null,
-        el('h2', { textContent: app?.name || appId }),
-        el('span', { className: 'points', textContent: `${pointsOf(list)} т.` })),
-      medals.length
-        ? el('ul', { className: 'medals' }, ...medals.map((medal) => {
-          const info = medalInfo.find((m) => m.code === medal.code);
-          return el('li', { className: 'medal' },
-            el('span', { className: 'medal-icon', ariaHidden: 'true' },
-              info?.icon ? el('img', { src: info.icon, alt: '' }) : '★'),
-            el('span', { className: 'medal-name', textContent: info?.name || medal.code }),
-            el('span', { className: 'medal-date', textContent: dateText(medal.earnedAt) }));
-        }))
-        : el('p', { className: 'no-medals', textContent: 'Още няма медали тук, само точки.' }));
-  }));
-  $('apps').replaceChildren(...sections);
-  $('backpack').hidden = false;
+  $('apps').replaceChildren(...childApps.map((app) => el('article', { className: 'backpack-app' },
+    el('div', { className: 'backpack-app-head' },
+      el('img', { src: iconOf(app), alt: '', width: 56, height: 56 }),
+      el('h3', { textContent: app.manifest.name }),
+      mode === 'child'
+        ? el('a', { className: 'button button-small', href: `${laRoot()}app/#/${app.manifest.route}`, textContent: 'Отвори' })
+        : null),
+    app.manifest.description ? el('p', { className: 'core-note', textContent: app.manifest.description }) : null)));
+  if (!childApps.length) $('apps').append(el('p', { className: 'core-note', textContent: 'Още няма апи за този клас.' }));
+  $('card').hidden = false;
 }
 
 function renderSwitch(children, selected, onPick) {
@@ -94,6 +63,11 @@ async function render() {
   if (!(await store.currentUser())) return goTo('login/');
   const mode = await store.deviceMode();
   if (!mode) return goTo('app/');
+  $('loading').hidden = true;
+  if (dashboard && mode !== 'parent') {
+    $('parent-only').hidden = false;
+    return;
+  }
 
   let children;
   let selected;
@@ -105,28 +79,33 @@ async function render() {
     const wanted = (await store.currentChild())?.id;
     selected = children.find((c) => c.id === wanted) || children[0];
   }
-  $('loading').hidden = true;
   if (!selected) {
+    if (mode === 'parent') {
+      $('no-child-text').textContent = 'Още няма деца. Добави първото.';
+      $('no-child-link').textContent = 'Добави дете';
+      $('no-child-link').href = `${laRoot()}app/#/family`;
+    }
     $('no-child').hidden = false;
     return;
   }
   const pick = async (child) => {
     renderSwitch(children, child, pick);
-    await renderBackpack(child);
+    await renderCard(child, mode);
   };
-  renderSwitch(children, selected, pick);
-  await renderBackpack(selected);
+  await pick(selected);
 }
 
+const bar = shellBar($('shell-bar'));
 render().catch((error) => {
   console.error(error);
   $('loading').hidden = true;
   showError($('page-error'), error.message || 'Нещо се обърка. Опитай пак.');
 });
 
-// Another tab changed the child or signed out.
+// Another tab changed the child, signed out or a badge came.
 if (typeof BroadcastChannel !== 'undefined') {
   new BroadcastChannel('levacademy').addEventListener('message', ({ data }) => {
-    if (data?.type === 'signed-out' || data?.type === 'child-changed') location.reload();
+    bar.refresh();
+    if (['signed-out', 'child-changed', 'badges-changed'].includes(data?.type)) location.reload();
   });
 }

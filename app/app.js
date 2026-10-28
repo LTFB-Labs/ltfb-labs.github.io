@@ -1,12 +1,20 @@
-// /app/: device mode (Родител | Дете), the family (children, parents, invite) and the child's apps.
+// /app/: the shell. Under its bar it shows the home page (no app open), an app (#/<route>), the family (#/family,
+// parent mode) or „Кой учи днес?“ (#/who, child mode). Apps run in a sandboxed frame through @ltfb/academy-core.
 import { store } from '../core/store.js';
 import { goTo, laRoot, showError } from '../core/ui.js';
+import { shellBar } from '../core/shell-bar.js';
+import { appsFor } from '../core/apps.js';
+import { mountApp } from '../core/academy-core/shell.js';
+import { DEFAULT_SETTINGS } from '../core/academy-core/types.js';
 
 const $ = (id) => document.getElementById(id);
-const sections = ['mode-choice', 'parent-view', 'child-pick', 'child-apps'];
+const sections = ['parent-view', 'child-pick', 'parent-only'];
+const PENDING_ROUTE_KEY = 'la.pendingRoute';
 
 let family = null;
 let schoolList = null;
+let bar = null;
+let opened = null;   // { route, inner, childId, app, mounted }
 
 function el(tag, props = {}, ...children) {
   const node = Object.assign(document.createElement(tag), props);
@@ -18,8 +26,18 @@ function avatarImg(n, alt = '') {
   return el('img', { src: `${laRoot()}avatars/${String(n).padStart(2, '0')}.webp`, alt, width: 96, height: 96 });
 }
 
-function show(sectionId) {
+// What is on screen: the stage (home page or app, the whole height) or one section of the page.
+function showStage() {
   $('loading').hidden = true;
+  $('page').hidden = true;
+  $('stage').hidden = false;
+}
+
+function show(sectionId) {
+  closeApp();
+  $('loading').hidden = true;
+  $('stage').hidden = true;
+  $('page').hidden = false;
   for (const id of sections) $(id).hidden = id !== sectionId;
 }
 
@@ -35,6 +53,10 @@ async function schoolText(child) {
   return school ? school.name : '';
 }
 
+const routeParts = () => location.hash.replace(/^#\/?/, '').split('/');
+const readPending = () => { try { return sessionStorage.getItem(PENDING_ROUTE_KEY); } catch { return null; } };
+const writePending = (value) => { try { if (value) sessionStorage.setItem(PENDING_ROUTE_KEY, value); else sessionStorage.removeItem(PENDING_ROUTE_KEY); } catch { /* private mode */ } };
+
 // Screens
 
 async function render() {
@@ -45,15 +67,22 @@ async function render() {
     return;
   }
   const mode = await store.deviceMode();
-  $('sign-out').hidden = mode !== 'parent';
-  // Open decision: how parent mode is protected on the child's tablet (a PIN or the password again).
-  // Until it is decided, „Родител“ switches back without any check.
-  $('to-parent').hidden = mode !== 'child';
-  $('bar-child').hidden = true;
+  if (!mode && !$('mode-dialog').open) $('mode-dialog').showModal();
 
-  if (mode === 'parent') return renderParent(user);
-  if (mode === 'child') return renderChild();
-  show('mode-choice');
+  const [route, ...rest] = routeParts();
+  if (!route) return showHome();
+  if (route === 'family') return mode === 'parent' ? renderParent(user) : showHome();
+  if (route === 'who') return mode === 'child' ? renderChildPick() : showHome();
+  return openApp(route, rest.join('/'), mode);
+}
+
+// No app open: the LevAcademy home page under the shell's bar (without its own header, footer and analytics).
+function showHome() {
+  closeApp();
+  showStage();
+  if (!$('stage').querySelector('.home-frame')) {
+    $('stage').replaceChildren(el('iframe', { className: 'home-frame', title: 'LevAcademy', src: `${laRoot()}?embed=shell` }));
+  }
 }
 
 async function renderParent(user) {
@@ -83,10 +112,7 @@ async function renderParent(user) {
   show('parent-view');
 }
 
-async function renderChild() {
-  const current = await store.currentChild();
-  if (current) return renderApps(current);
-
+async function renderChildPick() {
   const { children } = await store.myFamily();
   $('child-tiles').replaceChildren(...children.map((child) =>
     el('button', {
@@ -94,25 +120,87 @@ async function renderChild() {
       type: 'button',
       onclick: async () => {
         await store.selectChild(child.id);
-        refresh();
+        const pending = readPending();
+        writePending(null);
+        location.hash = pending ? `#/${pending}` : '#/';
+        bar.refresh();
       },
     }, avatarImg(child.avatar), el('span', { textContent: child.name }))));
   $('no-children-child').hidden = children.length > 0;
   show('child-pick');
 }
 
-async function renderApps(child) {
-  $('bar-child').replaceChildren(avatarImg(child.avatar), el('span', { textContent: child.name }));
-  $('bar-child').hidden = false;
-  $('apps-title').textContent = `Какво ще учим, ${child.name}?`;
-  const response = await fetch(`${laRoot()}apps.json`);
-  const apps = response.ok ? await response.json() : [];
-  $('apps-grid').replaceChildren(...apps.map((app) =>
-    el('a', { className: 'app-tile', href: `${laRoot()}${app.path}` },
-      app.avatar ? avatarImg(app.avatar) : null,
-      el('strong', { textContent: app.name }),
-      el('span', { textContent: app.about || '' }))));
-  show('child-apps');
+// The child's profile for the apps: never the place, the school or the parents.
+async function profileOf(child) {
+  return {
+    id: child.id,
+    kind: 'child',
+    displayName: child.name,
+    grade: child.grade,
+    avatar: child.avatar,
+    avatarUrl: new URL(`avatars/${String(child.avatar).padStart(2, '0')}.webp`, new URL(laRoot(), location.href)).href,
+    badges: await store.badges(child.id),
+  };
+}
+
+function toast(text) {
+  const note = el('div', { className: 'shell-toast', role: 'status', textContent: text });
+  $('stage').append(note);
+  setTimeout(() => note.remove(), 4000);
+}
+
+function closeApp() {
+  if (opened) bar.setActiveRoute(null);
+  opened?.mounted.destroy();
+  opened = null;
+  $('stage').querySelector('.app-frame')?.remove();
+}
+
+async function openApp(route, inner, mode) {
+  if (mode !== 'child') {
+    show('parent-only');
+    return;
+  }
+  const child = await store.currentChild();
+  if (!child) {
+    writePending([route, inner].filter(Boolean).join('/'));
+    location.hash = '#/who';
+    return;
+  }
+  // The same app for the same child stays; the bar's link to it (no inner path) opens it from its start again.
+  if (opened && opened.route === route && opened.childId === child.id && (inner === opened.inner || inner)) return;
+  const app = (await appsFor(child)).find((a) => a.manifest.route === route);
+  if (!app) {
+    show(null);
+    showError($('page-error'), 'Този ап не е достъпен.');
+    return;
+  }
+  closeApp();
+  $('stage').querySelector('.home-frame')?.remove();
+  showStage();
+  const mounted = mountApp({
+    container: $('stage'),
+    app,
+    frameUrl: new URL(`${laRoot()}core/frame.html`, location.href).href,
+    route: inner,
+    handlers: {
+      getUser: () => profileOf(child),
+      getSettings: async () => DEFAULT_SETTINGS,
+      grantUserBadge: async (appId, badge) => {
+        const row = await store.grantBadge(child.id, appId, badge);
+        toast(`Нова значка: ${row.name}`);
+        return row;
+      },
+      appData: (appId, op, params) => store.appData(child.id, appId, op, params),
+      navigate: (appId, next) => {
+        if (opened) opened.inner = next;
+        history.replaceState(null, '', `#/${route}${next ? `/${next}` : ''}`);
+      },
+      onFail: () => toast('Апът не е достъпен.'),
+    },
+  });
+  opened = { route, inner, childId: child.id, app, mounted };
+  bar.setActiveRoute(route);
 }
 
 // Child dialog
@@ -256,25 +344,17 @@ function wire() {
   for (const button of document.querySelectorAll('.mode-button')) {
     button.addEventListener('click', async () => {
       await store.setDeviceMode(button.dataset.mode);
+      $('mode-dialog').close();
+      location.hash = button.dataset.mode === 'parent' ? '#/family' : '#/who';
+      bar.refresh();
       refresh();
     });
   }
-  $('to-child').addEventListener('click', async () => {
+  $('to-child-mode').addEventListener('click', async () => {
     await store.setDeviceMode('child');
     await store.selectChild(null);
-    refresh();
-  });
-  $('to-parent').addEventListener('click', async () => {
-    await store.setDeviceMode('parent');
-    refresh();
-  });
-  $('change-child').addEventListener('click', async () => {
-    await store.selectChild(null);
-    refresh();
-  });
-  $('sign-out').addEventListener('click', async () => {
-    await store.signOut();
-    goTo('login/');
+    location.hash = '#/who';
+    bar.refresh();
   });
 
   $('add-child').addEventListener('click', () => openChildDialog());
@@ -292,15 +372,23 @@ function wire() {
   $('invite-share').addEventListener('click', shareInvite);
   $('invite-close').addEventListener('click', () => $('invite-dialog').close());
 
-  // Another tab changed the child or signed out.
+  addEventListener('hashchange', refresh);
+
+  // Another tab changed the child, signed out or a badge came: redraw the bar; a new child reopens the app.
   if (typeof BroadcastChannel !== 'undefined') {
-    new BroadcastChannel('levacademy').addEventListener('message', refresh);
+    new BroadcastChannel('levacademy').addEventListener('message', ({ data }) => {
+      bar.refresh();
+      if (data?.type === 'badges-changed') opened?.mounted.notifyChange();
+      else refresh();
+    });
   }
 }
 
 function fail(error) {
   console.error(error);
   $('loading').hidden = true;
+  $('page').hidden = false;
+  $('stage').hidden = true;
   showError($('page-error'), error.message || 'Нещо се обърка. Опитай пак.');
 }
 
@@ -308,5 +396,6 @@ function refresh() {
   render().catch(fail);
 }
 
+bar = shellBar($('shell-bar'));
 wire();
 refresh();

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>LevAcademy</title>
+  <!-- The frame every contract app runs in: a sandbox without the shell's origin, so the app cannot reach
+       the sign-in, the session or the shell's storage. It loads the app's module from ?entry= and mounts it. -->
+  <style>html, body { margin: 0; min-height: 100%; } #app { min-height: 100vh; }</style>
+  <script type="module">
+    import { startFrame } from './academy-core/app.js';
+    startFrame(document.getElementById('app'));
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+</body>
+</html>

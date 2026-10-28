@@ -9,14 +9,11 @@
   <link rel="icon" href="../../img/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../../shared/tokens.css">
   <link rel="stylesheet" href="../../core/core.css">
-  <link rel="stylesheet" href="dashboard.css">
-  <script type="module" src="dashboard.js"></script>
+  <link rel="stylesheet" href="../backpack/backpack.css">
+  <script type="module" src="../backpack/backpack.js"></script>
 </head>
-<body>
-  <header class="core-bar">
-    <a class="core-brand" href="../"><img src="../../img/logo.svg" alt="" width="36" height="36"><span>LevAcademy</span></a>
-    <a class="button button-small" href="../">← Назад</a>
-  </header>
+<body data-view="dashboard">
+  <header id="shell-bar"></header>
 
   <main class="core-page">
     <p class="core-lead" id="loading">Зареждаме…</p>
@@ -24,41 +21,36 @@
 
     <section id="parent-only" hidden>
       <h1>Таблото е за родителя</h1>
-      <p class="core-lead">Превключи на режим „Родител“, за да го видиш.</p>
-      <a class="button button-primary" href="../">Към LevAcademy</a>
+      <p class="core-lead">Превключи на режим „Родител“ от менюто горе вдясно, за да го видиш.</p>
     </section>
 
-    <section id="no-children" hidden>
-      <h1>Табло</h1>
-      <p class="core-lead">Още няма деца. Добави първото и тук ще виждаш какво учи.</p>
-      <a class="button button-primary" href="../">Добави дете</a>
+    <section id="no-child" hidden>
+      <h1>Кой учи днес?</h1>
+      <p class="core-lead" id="no-child-text">Избери дете, за да видиш раницата му.</p>
+      <a class="button button-primary" href="../#/who" id="no-child-link">Избери дете</a>
     </section>
 
-    <section id="dashboard" hidden>
-      <h1>Табло</h1>
-      <nav class="child-switch" id="child-switch" aria-label="Дете"></nav>
+    <section id="card" hidden>
+      <nav class="child-switch" id="child-switch" aria-label="Дете" hidden></nav>
+      <div class="backpack-hero">
+        <img id="hero-avatar" alt="" width="120" height="120">
+        <div>
+          <h1 id="hero-title">Раницата</h1>
+          <div class="backpack-totals">
+            <span class="total"><b id="total-badges">0</b> <span id="badges-word">значки</span></span>
+          </div>
+        </div>
+      </div>
 
-      <h2 id="chart-title">Активност през последните 14 дни</h2>
-      <figure class="day-chart">
-        <div class="day-chart-plot" id="day-chart" aria-hidden="true"></div>
-        <figcaption class="core-note" id="chart-caption"></figcaption>
-      </figure>
-      <details class="table-view">
-        <summary>Покажи като таблица</summary>
-        <table class="data-table">
-          <caption>Брой дейности по дни</caption>
-          <thead><tr><th scope="col">Ден</th><th scope="col">Дейности</th></tr></thead>
-          <tbody id="day-table"></tbody>
-        </table>
-      </details>
+      <h2>Значки</h2>
+      <div class="backpack-empty" id="empty" hidden>
+        <p class="backpack-empty-title">Още няма значки.</p>
+        <p class="core-lead">Апите дават значки за успехи. Тук ще се пазят завинаги.</p>
+      </div>
+      <ul class="trophies" id="trophies"></ul>
 
-      <h2>По апи</h2>
-      <p class="core-note" id="no-apps" hidden>Още няма дейности.</p>
-      <div class="app-summary" id="app-summary"></div>
-
-      <h2>Последни дейности</h2>
-      <p class="core-note" id="no-recent" hidden>Още няма дейности. Когато детето реши тест или упражнение, ще се появи тук.</p>
-      <ul class="recent" id="recent"></ul>
+      <h2>Апи</h2>
+      <div class="backpack-apps" id="apps"></div>
     </section>
   </main>
 </body>

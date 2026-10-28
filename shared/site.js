@@ -4,6 +4,10 @@
 
 const CONSENT_KEY = 'la.cookieConsent'; // 'accepted' | 'declined'
 
+// Inside the shell (/app/, no app open) the home page is shown under the shell's bar: ?embed=shell.
+// Then it has no header, footer, cookie banner or analytics, and its app cards open the apps in the shell.
+const EMBEDDED = new URLSearchParams(location.search).get('embed') === 'shell' && window.parent !== window;
+
 export function laRoot() {
   const meta = document.querySelector('meta[name="la-root"]');
   const value = meta ? meta.getAttribute('content') : './';
@@ -116,16 +120,30 @@ function avatarSrc(n) {
 async function renderApps(container) {
   const status = container.querySelector('.cards-status');
   try {
-    const response = await fetch(`${laRoot()}apps.json`);
-    if (!response.ok) throw new Error(String(response.status));
-    const apps = await response.json();
     const root = laRoot();
+    let apps;
+    if (EMBEDDED) {
+      // Only the apps that implement the contract, as the shell shows them.
+      const { contractApps, iconOf } = await import(new URL(`${root}core/apps.js`, document.baseURI).href);
+      apps = (await contractApps()).map((app) => ({
+        name: app.manifest.name, about: app.manifest.description || '', icon: iconOf(app),
+        href: `${root}app/#/${app.manifest.route}`, target: '_top',
+        grades: app.manifest.grades?.length ? app.manifest.grades.map((g) => `${g}. клас`).join(', ') : '',
+      }));
+    } else {
+      const response = await fetch(`${root}apps.json`);
+      if (!response.ok) throw new Error(String(response.status));
+      apps = (await response.json()).map((app) => ({
+        name: app.name, about: app.about, icon: avatarSrc(app.avatar), href: `${root}${app.path}`, grades: app.grades,
+      }));
+    }
     const nodes = apps.map((app) => {
       const card = document.createElement('a');
       card.className = 'card';
-      card.href = `${root}${app.path}`;
+      card.href = app.href;
+      if (app.target) card.target = app.target;
       const img = document.createElement('img');
-      img.src = avatarSrc(app.avatar);
+      img.src = app.icon;
       img.alt = '';
       img.width = 72;
       img.height = 72;
@@ -152,9 +170,20 @@ async function renderApps(container) {
 }
 
 /* ---------- start ---------- */
-buildHeader();
-buildFooter();
+if (EMBEDDED) {
+  document.documentElement.classList.add('embedded');
+  // Links to other pages of the site open in the whole window, not inside the shell.
+  document.addEventListener('click', (event) => {
+    const link = event.target.closest('a[href]');
+    if (link && !link.target) link.target = '_top';
+  });
+} else {
+  buildHeader();
+  buildFooter();
+}
 document.querySelectorAll('[data-apps]').forEach(renderApps);
-const consent = readConsent();
-if (consent === 'accepted') loadAnalytics();
-else if (consent !== 'declined') showBanner();
+if (!EMBEDDED) {
+  const consent = readConsent();
+  if (consent === 'accepted') loadAnalytics();
+  else if (consent !== 'declined') showBanner();
+}

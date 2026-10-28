@@ -8,41 +8,23 @@
   <title>LevAcademy</title>
   <link rel="stylesheet" href="../shared/tokens.css">
   <link rel="stylesheet" href="../core/core.css">
+  <link rel="icon" href="../img/logo.svg" type="image/svg+xml">
   <script type="module" src="app.js"></script>
 </head>
-<body>
-  <header class="core-bar">
-    <a class="core-brand" href="../"><img src="../img/logo.svg" alt="" width="36" height="36"><span>LevAcademy</span></a>
-    <div class="core-bar-end">
-      <span class="core-bar-child" id="bar-child" hidden></span>
-      <button class="button button-small" type="button" id="to-parent" hidden>Родител</button>
-      <button class="button button-small" type="button" id="sign-out" hidden>Изход</button>
-    </div>
-  </header>
+<body class="shell">
+  <header id="shell-bar"></header>
 
-  <main class="core-page">
+  <div class="shell-stage" id="stage" hidden></div>
+
+  <main class="core-page" id="page">
     <p class="core-lead" id="loading">Зареждаме…</p>
     <p class="core-error" id="page-error" role="alert" hidden></p>
-
-    <section id="mode-choice" hidden>
-      <h1>Кой ползва устройството сега?</h1>
-      <div class="mode-buttons">
-        <button class="mode-button" type="button" data-mode="parent">
-          <strong>Родител</strong><span>деца, табло, покани</span>
-        </button>
-        <button class="mode-button" type="button" data-mode="child">
-          <strong>Дете</strong><span>кой учи и апите</span>
-        </button>
-      </div>
-      <p class="core-note">Изборът се помни на това устройство.</p>
-    </section>
 
     <section id="parent-view" hidden>
       <h1 id="parent-hello">Здравей!</h1>
       <nav class="quick-links" aria-label="Бързи връзки">
         <a class="quick-link" href="dashboard/">Табло</a>
         <a class="quick-link" href="backpack/">Раница</a>
-        <button class="quick-link" type="button" id="to-child">Режим „Дете“</button>
       </nav>
 
       <h2>Деца</h2>
@@ -61,15 +43,27 @@
       <p class="core-note" id="no-children-child" hidden>Още няма деца. Родителят трябва да ги добави.</p>
     </section>
 
-    <section id="child-apps" hidden>
-      <h1 id="apps-title">Какво ще учим?</h1>
-      <div class="app-grid" id="apps-grid"></div>
-      <div class="dialog-actions">
-        <a class="button button-primary" href="backpack/">Моята раница</a>
-        <button class="button" type="button" id="change-child">Смени детето</button>
-      </div>
+    <section id="parent-only" hidden>
+      <h1>Апите са за децата</h1>
+      <p class="core-lead">Апите се отварят в режим „Дете“, за да знаят кое дете учи.</p>
+      <button class="button button-primary" type="button" id="to-child-mode">Режим „Дете“</button>
     </section>
   </main>
+
+  <dialog class="core-dialog" id="mode-dialog" aria-labelledby="mode-title">
+    <form class="core-form" method="dialog">
+      <h2 id="mode-title">Кой ползва устройството сега?</h2>
+      <div class="mode-buttons">
+        <button class="mode-button" type="button" data-mode="parent">
+          <strong>Родител</strong><span>деца, табло, покани</span>
+        </button>
+        <button class="mode-button" type="button" data-mode="child">
+          <strong>Дете</strong><span>кой учи и апите</span>
+        </button>
+      </div>
+      <p class="core-note">Изборът се помни на това устройство. Сменя се от менюто горе вдясно.</p>
+    </form>
+  </dialog>
 
   <dialog class="core-dialog" id="child-dialog" aria-labelledby="child-dialog-title">
     <form class="core-form" id="child-form" method="dialog">

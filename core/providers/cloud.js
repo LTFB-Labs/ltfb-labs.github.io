@@ -104,32 +104,14 @@ function toChild(row) {
   };
 }
 
-function toActivity(row) {
+function toBadge(row) {
   return {
-    id: row.id,
-    childId: row.child_id,
     app: row.app,
-    kind: row.kind,
-    topic: row.topic,
-    startedAt: row.started_at,
-    finishedAt: row.finished_at,
-    points: row.points,
-    maxPoints: row.max_points,
-    seconds: row.seconds,
-    details: row.details,
-    contract: row.contract,
-  };
-}
-
-function toAward(row) {
-  return {
-    id: row.id,
-    childId: row.child_id,
-    app: row.app,
-    kind: row.kind,
     code: row.code,
-    value: row.value,
-    topic: row.topic ?? null,
+    name: row.name,
+    description: row.description ?? undefined,
+    reason: row.reason ?? undefined,
+    icon: row.icon,
     earnedAt: row.earned_at,
   };
 }
@@ -358,50 +340,81 @@ export async function acceptInvite(token) {
     'Поканата не е валидна или е изтекла. Помоли за нова.');
 }
 
-// History
-
-export async function saveActivity(childId, app, activity) {
+// Parent mode on the child's tablet: the signed-in parent's password again.
+export async function verifyPassword(password) {
+  const user = await requireMe();
+  if (!password) throw new Error('Напиши паролата си.');
   const supabase = await client();
+  const { error } = await supabase.auth.signInWithPassword({ email: user.email, password: String(password) });
+  if (error) {
+    if (error.code === 'invalid_credentials' || /invalid login credentials/i.test(error.message || '')) throw new Error('Грешна парола.');
+    throw authError(error, 'Не успяхме да проверим паролата. Опитай пак.');
+  }
+}
+
+// Badges: the child's trophies, given by the apps through the shell.
+
+export async function badges(childId) {
+  const supabase = await client();
+  return check(await supabase.from('badges').select('*').eq('child_id', childId)
+    .order('earned_at', { ascending: false })).map(toBadge);
+}
+
+// A badge the child already has from this app is returned as it is (given once).
+export async function grantBadge(childId, app, badge) {
+  const supabase = await client();
+  const existing = check(await supabase.from('badges').select('*')
+    .eq('child_id', childId).eq('app', app).eq('code', badge.code).maybeSingle());
+  if (existing) return toBadge(existing);
   const row = {
-    child_id: childId,
-    app,
-    kind: activity.kind,
-    topic: activity.topic ?? null,
-    started_at: activity.startedAt ?? null,
-    finished_at: activity.finishedAt ?? null,
-    points: activity.points ?? null,
-    max_points: activity.maxPoints ?? null,
-    seconds: activity.seconds ?? null,
-    details: activity.details ?? null,
-    contract: 1,
+    child_id: childId, app, code: badge.code, name: badge.name, icon: badge.icon,
+    description: badge.description ?? null, reason: badge.reason ?? null,
   };
-  return toActivity(check(await supabase.from('activities').insert(row).select().single(),
-    'Не успяхме да запишем. Провери интернета и опитай пак.'));
+  return toBadge(check(await supabase.from('badges').insert(row).select().single(),
+    'Не успяхме да запишем значката. Опитай пак.'));
 }
 
-export async function activities(childId, { app, since } = {}) {
-  const supabase = await client();
-  let query = supabase.from('activities').select('*').eq('child_id', childId);
-  if (app) query = query.eq('app', app);
-  if (since) query = query.gte('started_at', new Date(since).toISOString());
-  return check(await query.order('started_at', { ascending: false })).map(toActivity);
-}
+// The apps' own data, per app and child. The app never gets here directly: the shell calls this for it.
+const PAGE = 1000;
 
-export async function award(childId, app, { kind, code, value = null, topic = null }) {
+export async function appData(childId, app, op, { collection, id, record, records } = {}) {
   const supabase = await client();
-  const row = { child_id: childId, app, kind, code, value, topic };
-  return toAward(check(await supabase.from('awards').insert(row).select().single(),
-    'Не успяхме да запишем наградата. Опитай пак.'));
-}
-
-export async function awards(childId) {
-  const supabase = await client();
-  return check(await supabase.from('awards').select('*').eq('child_id', childId)
-    .order('earned_at', { ascending: false })).map(toAward);
-}
-
-export async function percentile(childId, app, topic) {
-  const supabase = await client();
-  const value = check(await supabase.rpc('percentile_rank', { p_child_id: childId, p_app: app, p_topic: topic }));
-  return value == null ? null : Number(value);
+  const rows = () => supabase.from('app_data').select('data')
+    .eq('child_id', childId).eq('app', app).eq('collection', collection);
+  switch (op) {
+    case 'get': {
+      const row = check(await rows().eq('id', String(id)).maybeSingle());
+      return row ? row.data : undefined;
+    }
+    case 'all': {
+      // Supabase returns at most 1000 rows at a time: read page by page.
+      const all = [];
+      for (let from = 0; ; from += PAGE) {
+        const page = check(await rows().order('updated_at').order('id').range(from, from + PAGE - 1));
+        all.push(...page.map((row) => row.data));
+        if (page.length < PAGE) return all;
+      }
+    }
+    case 'put':
+    case 'putMany': {
+      const at = new Date().toISOString();
+      const list = op === 'put' ? [record] : records || [];
+      if (!list.length) return undefined;
+      // One request: all the records are saved, or none.
+      check(await supabase.from('app_data').upsert(list.map((r) => ({
+        child_id: childId, app, collection, id: String(r.id), data: r, updated_at: at,
+      }))), 'Не успяхме да запишем. Провери интернета и опитай пак.');
+      return undefined;
+    }
+    case 'remove':
+      check(await supabase.from('app_data').delete()
+        .eq('child_id', childId).eq('app', app).eq('collection', collection).eq('id', String(id)));
+      return undefined;
+    case 'clear':
+      check(await supabase.from('app_data').delete()
+        .eq('child_id', childId).eq('app', app).eq('collection', collection));
+      return undefined;
+    default:
+      throw new Error(`Непозната операция ${op}.`);
+  }
 }

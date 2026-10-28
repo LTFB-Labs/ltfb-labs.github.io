@@ -101,3 +101,6 @@ a.card:hover { border-color: var(--accent); }
 mark.placeholder { background: #fff0a8; color: var(--ink); padding: 1px 6px; border-radius: 6px; }
 .cards + p, .callout + .notice, .cards + .notice { margin-top: 16px; }
 .callout { margin-bottom: 16px; }
+
+/* The home page inside the shell (?embed=shell): no sign-up buttons, the shell already knows who is in. */
+.embedded .hero-actions, .embedded .callout { display: none; }
