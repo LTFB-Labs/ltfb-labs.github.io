@@ -5,7 +5,8 @@
 const CONSENT_KEY = 'la.cookieConsent'; // 'accepted' | 'declined'
 
 // Inside the shell (/app/, no app open) the home page is shown under the shell's bar: ?embed=shell.
-// Then it has no header, footer, cookie banner or analytics, and its app cards open the apps in the shell.
+// Then it has no header, footer, cookie banner or analytics. Everywhere the app cards are only the apps that implement
+// the contract, and they open in the shell (/app/#/<route>; without sign-in that leads to the sign-in).
 const EMBEDDED = new URLSearchParams(location.search).get('embed') === 'shell' && window.parent !== window;
 
 export function laRoot() {
@@ -113,30 +114,17 @@ async function loadAnalytics() {
 }
 
 /* ---------- apps catalog (apps.json) ---------- */
-function avatarSrc(n) {
-  return `${laRoot()}avatars/${String(n).padStart(2, '0')}.webp`;
-}
-
 async function renderApps(container) {
   const status = container.querySelector('.cards-status');
   try {
     const root = laRoot();
-    let apps;
-    if (EMBEDDED) {
-      // Only the apps that implement the contract, as the shell shows them.
-      const { contractApps, iconOf } = await import(new URL(`${root}core/apps.js`, document.baseURI).href);
-      apps = (await contractApps()).map((app) => ({
-        name: app.manifest.name, about: app.manifest.description || '', icon: iconOf(app),
-        href: `${root}app/#/${app.manifest.route}`, target: '_top',
-        grades: app.manifest.grades?.length ? app.manifest.grades.map((g) => `${g}. клас`).join(', ') : '',
-      }));
-    } else {
-      const response = await fetch(`${root}apps.json`);
-      if (!response.ok) throw new Error(String(response.status));
-      apps = (await response.json()).map((app) => ({
-        name: app.name, about: app.about, icon: avatarSrc(app.avatar), href: `${root}${app.path}`, grades: app.grades,
-      }));
-    }
+    // Only the apps that implement the contract, as the shell shows them; they open inside LevAcademy.
+    const { contractApps, iconOf } = await import(new URL(`${root}core/apps.js`, document.baseURI).href);
+    const apps = (await contractApps()).map((app) => ({
+      name: app.manifest.name, about: app.manifest.description || '', icon: iconOf(app),
+      href: `${root}app/#/${app.manifest.route}`, target: EMBEDDED ? '_top' : '',
+      grades: app.manifest.grades?.length ? app.manifest.grades.map((g) => `${g}. клас`).join(', ') : '',
+    }));
     const nodes = apps.map((app) => {
       const card = document.createElement('a');
       card.className = 'card';
