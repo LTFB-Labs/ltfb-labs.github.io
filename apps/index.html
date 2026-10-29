@@ -18,6 +18,18 @@
   <script type="module" src="../shared/site.js"></script>
 </head>
 <body data-page="apps">
+<a class="skip-link" href="#main">Към съдържанието</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="../"><img src="../img/logo.svg" alt="" width="40" height="40"><span>LevAcademy</span></a>
+    <nav class="site-nav" aria-label="Главно меню">
+      <a href="../parents/">Родители</a>
+      <a href="../apps/" aria-current="page">Приложения</a>
+      <a href="../login/">Вход</a>
+      <a class="btn" href="../register/">Регистрирай се</a>
+    </nav>
+  </div>
+</header>
 <main id="main">
 <div class="page-head wrap">
   <h1>Приложения</h1>
@@ -26,10 +38,25 @@
 
 <section class="section">
   <div class="wrap">
-    <div class="cards" data-apps><p class="cards-status">Зареждаме приложенията…</p></div>
+    <div class="cards">
+<!-- apps:start: build-catalog.mjs пише картите тук -->
+      <a class="card" href="../app/#/nvo"><img src="../nvo-matematika/themes/blue/img/avatar.png" alt="" width="72" height="72" loading="lazy"><div><h3>НВО по математика</h3><p>Пробни тестове и упражнения за изпита в края на 4. клас.</p><span class="grades">4. клас</span></div></a>
+      <a class="card" href="../app/#/history"><img src="../bg-time-traveler/img/mascot.webp" alt="" width="72" height="72" loading="lazy"><div><h3>Пътешествие във времето</h3><p>Дърпай слайдъра и виж как се променя България от 600 г. до днес.</p></div></a>
+<!-- apps:end -->
+    </div>
     <p class="notice">Приложенията се добавят постепенно: тук са тези, които вече работят в LevAcademy.</p>
   </div>
 </section>
 </main>
+<footer class="site-footer">
+  <div class="wrap">
+    <nav aria-label="Правна информация">
+      <a href="../privacy/">Поверителност</a>
+      <a href="../terms/">Условия</a>
+      <button type="button" class="link-button" data-cookie-settings hidden>Бисквитки</button>
+    </nav>
+    <span>© LTFB</span>
+  </div>
+</footer>
 </body>
 </html>

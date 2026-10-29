@@ -76,7 +76,6 @@ a.card:hover { border-color: var(--accent); }
 .card h3 { margin: 0 0 .2em; }
 .card p { margin: 0; color: var(--muted); }
 .card .grades { display: inline-block; margin-top: 8px; padding: 2px 10px; border-radius: 999px; background: var(--accent-light); color: var(--accent-dark); font-size: .85rem; font-weight: 600; }
-.cards-status { color: var(--muted); }
 
 .feature { display: grid; gap: 16px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow); }
 .feature img { width: 120px; height: 120px; border-radius: var(--radius); background: var(--surface-2); justify-self: center; }
@@ -102,5 +101,5 @@ mark.placeholder { background: #fff0a8; color: var(--ink); padding: 1px 6px; bor
 .cards + p, .callout + .notice, .cards + .notice { margin-top: 16px; }
 .callout { margin-bottom: 16px; }
 
-/* The home page inside the shell (?embed=shell): no sign-up buttons, the shell already knows who is in. */
-.embedded .hero-actions, .embedded .callout { display: none; }
+/* The home page inside the shell (?embed=shell): no header, footer or sign-up buttons, the shell already knows who is in. */
+.embedded .skip-link, .embedded .site-header, .embedded .site-footer, .embedded .hero-actions, .embedded .callout { display: none; }

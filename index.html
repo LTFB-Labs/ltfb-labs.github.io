@@ -13,11 +13,27 @@
   <meta property="og:description" content="Учене по програмата на МОН за деца. Родителят вижда напредъка на детето, а детето учи в приложения с Пухчето.">
   <meta property="og:image" content="./img/logo.svg">
   <link rel="icon" href="./img/logo.svg" type="image/svg+xml">
+  <script>
+    // Inside the shell (/app/ loads this page with ?embed=shell): set the class before the first paint, so the header doesn't flash.
+    if (new URLSearchParams(location.search).get('embed') === 'shell' && window.parent !== window) document.documentElement.classList.add('embedded');
+  </script>
   <link rel="stylesheet" href="./shared/tokens.css">
   <link rel="stylesheet" href="./shared/site.css">
   <script type="module" src="./shared/site.js"></script>
 </head>
 <body data-page="home">
+<a class="skip-link" href="#main">Към съдържанието</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="./img/logo.svg" alt="" width="40" height="40"><span>LevAcademy</span></a>
+    <nav class="site-nav" aria-label="Главно меню">
+      <a href="./parents/">Родители</a>
+      <a href="./apps/">Приложения</a>
+      <a href="./login/">Вход</a>
+      <a class="btn" href="./register/">Регистрирай се</a>
+    </nav>
+  </div>
+</header>
 <main id="main">
 <section class="hero">
   <div class="wrap">
@@ -51,7 +67,12 @@
   <div class="wrap">
     <h2>Приложения</h2>
     <p class="intro">Всяко приложение е отделно и може да се ползва само за себе си. С профил в LevAcademy то пази и резултатите на детето.</p>
-    <div class="cards" data-apps><p class="cards-status">Зареждаме приложенията…</p></div>
+    <div class="cards">
+<!-- apps:start: build-catalog.mjs пише картите тук -->
+      <a class="card" href="./app/#/nvo"><img src="./nvo-matematika/themes/blue/img/avatar.png" alt="" width="72" height="72" loading="lazy"><div><h3>НВО по математика</h3><p>Пробни тестове и упражнения за изпита в края на 4. клас.</p><span class="grades">4. клас</span></div></a>
+      <a class="card" href="./app/#/history"><img src="./bg-time-traveler/img/mascot.webp" alt="" width="72" height="72" loading="lazy"><div><h3>Пътешествие във времето</h3><p>Дърпай слайдъра и виж как се променя България от 600 г. до днес.</p></div></a>
+<!-- apps:end -->
+    </div>
     <p><a href="apps/">Всички приложения</a></p>
   </div>
 </section>
@@ -78,5 +99,15 @@
   </div>
 </section>
 </main>
+<footer class="site-footer">
+  <div class="wrap">
+    <nav aria-label="Правна информация">
+      <a href="./privacy/">Поверителност</a>
+      <a href="./terms/">Условия</a>
+      <button type="button" class="link-button" data-cookie-settings hidden>Бисквитки</button>
+    </nav>
+    <span>© LTFB</span>
+  </div>
+</footer>
 </body>
 </html>

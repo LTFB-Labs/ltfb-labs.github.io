@@ -1,13 +1,15 @@
-// Public pages of LevAcademy: header + footer, cookie banner, Google Analytics (only after consent), apps catalog.
+// Public pages of LevAcademy: cookie banner and Google Analytics (only after consent).
+// The text, header, footer and apps catalog are in the HTML itself, for search engines (decisions/0008);
+// this script only adds on top. The catalog is written by build-catalog.mjs when publishing.
 // Every page has <meta name="la-root" content="../"> (relative path from the page to the site root, ending with "/";
 // "./" on the root page). laRoot() returns it; core/ and apps use the same convention.
 
 const CONSENT_KEY = 'la.cookieConsent'; // 'accepted' | 'declined'
 
 // Inside the shell (/app/, no app open) the home page is shown under the shell's bar: ?embed=shell.
-// Then it has no header, footer, cookie banner or analytics. Everywhere the app cards are only the apps that implement
-// the contract, and they open in the shell (/app/#/<route>; without sign-in that leads to the sign-in).
-const EMBEDDED = new URLSearchParams(location.search).get('embed') === 'shell' && window.parent !== window;
+// A script in the page's <head> sets the class "embedded" before the first paint; then the CSS hides the header and
+// footer, and there is no cookie banner or analytics.
+const EMBEDDED = document.documentElement.classList.contains('embedded');
 
 export function laRoot() {
   const meta = document.querySelector('meta[name="la-root"]');
@@ -27,45 +29,6 @@ function readConsent() {
 }
 function writeConsent(value) {
   try { localStorage.setItem(CONSENT_KEY, value); } catch { /* private mode: the choice just isn't remembered */ }
-}
-
-/* ---------- header and footer ---------- */
-function buildHeader() {
-  const root = laRoot();
-  const page = document.body.dataset.page || '';
-  const current = (name) => (page === name ? ' aria-current="page"' : '');
-  const header = el(`
-    <header class="site-header">
-      <div class="wrap">
-        <a class="brand" href="${root}"><img src="${root}img/logo.svg" alt="" width="40" height="40"><span>LevAcademy</span></a>
-        <nav class="site-nav" aria-label="Главно меню">
-          <a href="${root}parents/"${current('parents')}>Родители</a>
-          <a href="${root}apps/"${current('apps')}>Приложения</a>
-          <a href="${root}login/">Вход</a>
-          <a class="btn" href="${root}register/">Регистрирай се</a>
-        </nav>
-      </div>
-    </header>`);
-  const skip = el('<a class="skip-link" href="#main">Към съдържанието</a>');
-  document.body.prepend(header);
-  document.body.prepend(skip);
-}
-
-function buildFooter() {
-  const root = laRoot();
-  const footer = el(`
-    <footer class="site-footer">
-      <div class="wrap">
-        <nav aria-label="Правна информация">
-          <a href="${root}privacy/">Поверителност</a>
-          <a href="${root}terms/">Условия</a>
-          <button type="button" class="link-button" data-cookie-settings>Бисквитки</button>
-        </nav>
-        <span>© LTFB</span>
-      </div>
-    </footer>`);
-  document.body.append(footer);
-  footer.querySelector('[data-cookie-settings]').addEventListener('click', () => showBanner());
 }
 
 /* ---------- cookie banner ---------- */
@@ -113,64 +76,19 @@ async function loadAnalytics() {
   document.head.append(script);
 }
 
-/* ---------- apps catalog (apps.json) ---------- */
-async function renderApps(container) {
-  const status = container.querySelector('.cards-status');
-  try {
-    const root = laRoot();
-    // Only the apps that implement the contract, as the shell shows them; they open inside LevAcademy.
-    const { contractApps, iconOf } = await import(new URL(`${root}core/apps.js`, document.baseURI).href);
-    const apps = (await contractApps()).map((app) => ({
-      name: app.manifest.name, about: app.manifest.description || '', icon: iconOf(app),
-      href: `${root}app/#/${app.manifest.route}`, target: EMBEDDED ? '_top' : '',
-      grades: app.manifest.grades?.length ? app.manifest.grades.map((g) => `${g}. клас`).join(', ') : '',
-    }));
-    const nodes = apps.map((app) => {
-      const card = document.createElement('a');
-      card.className = 'card';
-      card.href = app.href;
-      if (app.target) card.target = app.target;
-      const img = document.createElement('img');
-      img.src = app.icon;
-      img.alt = '';
-      img.width = 72;
-      img.height = 72;
-      img.loading = 'lazy';
-      const body = document.createElement('div');
-      const title = document.createElement('h3');
-      title.textContent = app.name;
-      const about = document.createElement('p');
-      about.textContent = app.about;
-      body.append(title, about);
-      if (app.grades) {
-        const grades = document.createElement('span');
-        grades.className = 'grades';
-        grades.textContent = app.grades;
-        body.append(grades);
-      }
-      card.append(img, body);
-      return card;
-    });
-    container.replaceChildren(...nodes);
-  } catch {
-    if (status) status.textContent = 'Списъкът с приложения не се зареди. Опитай пак по-късно.';
-  }
-}
-
 /* ---------- start ---------- */
 if (EMBEDDED) {
-  document.documentElement.classList.add('embedded');
   // Links to other pages of the site open in the whole window, not inside the shell.
   document.addEventListener('click', (event) => {
     const link = event.target.closest('a[href]');
     if (link && !link.target) link.target = '_top';
   });
 } else {
-  buildHeader();
-  buildFooter();
-}
-document.querySelectorAll('[data-apps]').forEach(renderApps);
-if (!EMBEDDED) {
+  // Without JS the button would do nothing, so it is hidden in the HTML.
+  document.querySelectorAll('[data-cookie-settings]').forEach((button) => {
+    button.hidden = false;
+    button.addEventListener('click', () => showBanner());
+  });
   const consent = readConsent();
   if (consent === 'accepted') loadAnalytics();
   else if (consent !== 'declined') showBanner();
