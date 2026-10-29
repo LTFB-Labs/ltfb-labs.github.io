@@ -3,7 +3,7 @@ import { PERMISSIONS } from './types.js';
 const KEBAB = /^[a-z0-9][a-z0-9-]{0,62}$/;
 const DEVICES = ['microphone', 'camera'];
 /** Paths of the shell itself: an app may not take them. */
-export const RESERVED_ROUTES = ['login', 'register', 'app', 'apps', 'parents', 'privacy', 'terms', 'auth', 'backpack', 'dashboard', 'core', 'family', 'who'];
+export const RESERVED_ROUTES = ['login', 'register', 'app', 'apps', 'games', 'parents', 'privacy', 'terms', 'auth', 'backpack', 'dashboard', 'core', 'family', 'who'];
 export class ContractError extends Error {
 }
 const fail = (message) => { throw new ContractError(`academy-core: ${message}`); };

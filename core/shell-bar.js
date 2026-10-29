@@ -126,14 +126,19 @@ export function shellBar(header) {
     const end = el('div', { className: 'shell-bar-end' });
 
     if (user && child) {
-      const apps = await appsFor(child);
+      const all = await appsFor(child);
+      const link = (app) => el('a', {
+        className: `shell-app${app.manifest.route === activeRoute ? ' is-active' : ''}`,
+        href: `${root}app/#/${app.manifest.route}`,
+      }, el('img', { src: iconOf(app), alt: '', width: 40, height: 40 }), el('span', { textContent: app.manifest.name }));
+      const apps = all.filter((app) => app.kind === 'app');
+      const games = all.filter((app) => app.kind === 'game');
       const list = el('div', { className: 'shell-drop-panel shell-apps-panel', role: 'menu' },
         el('p', { className: 'shell-menu-title', textContent: 'Апи' }),
-        ...apps.map((app) => el('a', {
-          className: `shell-app${app.manifest.route === activeRoute ? ' is-active' : ''}`,
-          href: `${root}app/#/${app.manifest.route}`,
-        }, el('img', { src: iconOf(app), alt: '', width: 40, height: 40 }), el('span', { textContent: app.manifest.name }))),
-        apps.length ? null : el('p', { className: 'core-note', textContent: 'Още няма апи за този клас.' }));
+        ...apps.map(link),
+        apps.length ? null : el('p', { className: 'core-note', textContent: 'Още няма апи за този клас.' }),
+        games.length ? el('p', { className: 'shell-menu-title', textContent: 'Игри' }) : null,
+        ...games.map(link));
       const button = el('button', { type: 'button', className: 'shell-icon-button', ariaLabel: 'Апи' },
         el('span', { className: 'shell-grid-icon', ariaHidden: 'true' }), el('span', { className: 'shell-label', textContent: 'Апи' }));
       end.append(dropdown(button, list));

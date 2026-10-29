@@ -1,4 +1,5 @@
-// The apps the shell shows: only the ones in apps.json that implement the contract (`"contract": 2`).
+// The apps the shell shows: only the ones in apps.json and games.json that implement the contract (`"contract": 2`).
+// A game is an app like any other; it is in games.json instead of apps.json, so the shell shows it under „Игри“.
 // Their name, icon, path and permissions come from the app's own levacademy.json, checked against the contract.
 // The other entries in apps.json are only for the public catalog (/apps/).
 import { checkManifest, isAvailable } from './academy-core/validate.js';
@@ -13,17 +14,23 @@ async function fetchJson(url) {
   return response.json();
 }
 
-// [{ id, url, manifest }] for every contract app that is on today.
+async function registry(file, kind) {
+  try { return (await fetchJson(`${siteRoot}${file}`)).map((entry) => ({ ...entry, kind })); } catch (error) {
+    console.warn(`${file}:`, error);
+    return [];
+  }
+}
+
+// [{ id, kind: 'app' | 'game', url, manifest }] for every contract app and game that is on today.
 export function contractApps() {
   cache ??= (async () => {
-    let registry = [];
-    try { registry = await fetchJson(`${siteRoot}apps.json`); } catch (error) { console.warn('apps.json:', error); }
-    const apps = await Promise.all(registry.filter((entry) => entry.contract === 2).map(async (entry) => {
+    const entries = (await Promise.all([registry('apps.json', 'app'), registry('games.json', 'game')])).flat();
+    const apps = await Promise.all(entries.filter((entry) => entry.contract === 2).map(async (entry) => {
       const url = new URL(entry.path, siteRoot).href;
       try {
         const manifest = checkManifest(await fetchJson(`${url}levacademy.json`));
         if (manifest.id !== entry.id) throw new Error(`id „${manifest.id}“ не съвпада с „${entry.id}“`);
-        return isAvailable(manifest) ? { id: entry.id, url, manifest } : null;
+        return isAvailable(manifest) ? { id: entry.id, kind: entry.kind, url, manifest } : null;
       } catch (error) {
         console.warn(`${entry.id}: апът не спазва договора и не се показва.`, error);
         return null;
