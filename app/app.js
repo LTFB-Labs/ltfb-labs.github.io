@@ -63,6 +63,7 @@ async function render() {
   showError($('page-error'), '');
   const user = await store.currentUser();
   if (!user) {
+    if (store.isGuest()) return renderGuest();
     goTo('login/');
     return;
   }
@@ -74,6 +75,13 @@ async function render() {
   if (route === 'family') return mode === 'parent' ? renderParent(user) : showHome();
   if (route === 'who') return mode === 'child' ? renderChildPick() : showHome();
   return openApp(route, rest.join('/'), mode);
+}
+
+// Guest (for now): the home page or any app, for the guest child; no family, no modes.
+function renderGuest() {
+  const [route, ...rest] = routeParts();
+  if (!route || route === 'family' || route === 'who') return showHome();
+  return mountFor(store.guestChild, route, rest.join('/'));
 }
 
 // No app open: the LevAcademy home page under the shell's bar (without its own header, footer and analytics).
@@ -132,6 +140,7 @@ async function renderChildPick() {
 
 // The child's profile for the apps: never the place, the school or the parents.
 async function profileOf(child) {
+  const guest = child.id === store.guestChild.id;
   return {
     id: child.id,
     kind: 'child',
@@ -139,7 +148,7 @@ async function profileOf(child) {
     grade: child.grade,
     avatar: child.avatar,
     avatarUrl: new URL(`avatars/${String(child.avatar).padStart(2, '0')}.webp`, new URL(laRoot(), location.href)).href,
-    badges: await store.badges(child.id),
+    badges: guest ? [] : await store.badges(child.id),
   };
 }
 
@@ -167,10 +176,15 @@ async function openApp(route, inner, mode) {
     location.hash = '#/who';
     return;
   }
+  return mountFor(child, route, inner);
+}
+
+async function mountFor(child, route, inner) {
+  const guest = child.id === store.guestChild.id;
   // The same app for the same child stays while the path is the one the app itself set (core.navigate). A path
   // changed from outside (an address, „назад“, the bar's link to the app) opens the app again at that path.
   if (opened && opened.route === route && opened.childId === child.id && inner === opened.inner) return;
-  const app = (await appsFor(child)).find((a) => a.manifest.route === route);
+  const app = (await appsFor(guest ? null : child)).find((a) => a.manifest.route === route);
   if (!app) {
     show(null);
     showError($('page-error'), 'Този ап не е достъпен.');
@@ -189,13 +203,19 @@ async function openApp(route, inner, mode) {
       getUser: () => profileOf(child),
       getSettings: async () => DEFAULT_SETTINGS,
       grantUserBadge: async (appId, badge) => {
+        if (guest) {
+          toast(`Нова значка: ${badge.name}`);
+          return { app: appId, ...badge, earnedAt: new Date().toISOString() };
+        }
         const row = await store.grantBadge(child.id, appId, badge);
         toast(`Нова значка: ${row.name}`);
         return row;
       },
       // One after another: a write the app sent just before it reloaded ends before its next read.
       appData: (appId, op, params) => {
-        const next = queue.then(() => store.appData(child.id, appId, op, params));
+        const next = queue.then(() => (guest
+          ? store.guestAppData(appId, op, params)
+          : store.appData(child.id, appId, op, params)));
         queue = next.catch(() => {});
         return next;
       },

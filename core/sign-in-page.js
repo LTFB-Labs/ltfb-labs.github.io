@@ -2,7 +2,7 @@
 // One e-mail form for both providers; Google/Facebook and „Забравена парола?“ only with the cloud provider.
 import { config } from './config.js';
 import { store } from './store.js';
-import { finishSignIn, rememberInvite, showError } from './ui.js';
+import { finishSignIn, goTo, rememberInvite, showError } from './ui.js';
 
 const mode = document.body.dataset.mode;
 const invite = new URLSearchParams(location.search).get('invite');
@@ -37,6 +37,12 @@ async function afterSignIn(result) {
   }
   fail(await finishSignIn(store));
 }
+
+// For now, while the core is being built: the apps and games without a profile (data only in this browser).
+document.getElementById('guest-button')?.addEventListener('click', () => {
+  store.startGuest();
+  goTo('app/');
+});
 
 // One eye button shows or hides every password field of the form together (password and its repeat).
 for (const toggle of document.querySelectorAll('.password-toggle')) {

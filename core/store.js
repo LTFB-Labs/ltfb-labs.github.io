@@ -24,6 +24,8 @@ provider.init({ config, siteRoot });
 
 const MODE_KEY = 'la.deviceMode';
 const CHILD_KEY = 'la.currentChildId';
+const GUEST_KEY = 'la.guest';
+const GUEST_DATA_KEY = 'la.guest.data';
 
 function readKey(key) {
   try { return localStorage.getItem(key); } catch { return null; }
@@ -55,6 +57,31 @@ function normalizeChild(child) {
   return { ...(child.id ? { id: child.id } : {}), name, city, schoolChoice, schoolId, grade, avatar };
 }
 
+// Guest (for now, while the core is being built): no profile, every app and game, data only in this browser.
+const GUEST_CHILD = { id: 'guest', name: 'Гост', grade: 4, avatar: 1 };
+
+function guestData() {
+  try { return JSON.parse(readKey(GUEST_DATA_KEY) || '{}'); } catch { return {}; }
+}
+
+function guestAppData(app, op, { collection, id, record, records } = {}) {
+  const data = guestData();
+  const bucket = (data[`${app}:${collection}`] ||= {});
+  const save = () => writeKey(GUEST_DATA_KEY, JSON.stringify(data));
+  switch (op) {
+    case 'get': return bucket[id];
+    case 'all': return Object.values(bucket);
+    case 'put':
+    case 'putMany':
+      for (const r of op === 'put' ? [record] : records || []) bucket[r.id] = r;
+      save();
+      return undefined;
+    case 'remove': delete bucket[id]; save(); return undefined;
+    case 'clear': delete data[`${app}:${collection}`]; save(); return undefined;
+    default: throw new Error(`Непозната операция ${op}.`);
+  }
+}
+
 const iconUrl = (icon) => (String(icon).startsWith('core:') ? `${siteRoot}core/badges/${String(icon).slice(5)}.svg` : icon);
 const withIconUrl = (badge) => ({ ...badge, icon: iconUrl(badge.icon) });
 
@@ -73,16 +100,26 @@ export const store = {
   currentUser: () => provider.currentUser(),
   // { mode: 'login' | 'register', email, password, displayName } or { provider: 'google' | 'facebook' }.
   // Resolves to the user, or to { notice } when the sign-in is not finished yet (e-mail confirmation).
-  signIn: (options) => provider.signIn(options),
+  async signIn(options) {
+    writeKey(GUEST_KEY, null);
+    return provider.signIn(options);
+  },
   completeSignIn: () => provider.completeSignIn(),
   resetPassword: (email) => provider.resetPassword(email),
   setNewPassword: (password) => provider.setNewPassword(password),
   async signOut() {
     writeKey(MODE_KEY, null);
     writeKey(CHILD_KEY, null);
+    writeKey(GUEST_KEY, null);
     broadcast('signed-out');
     await provider.signOut();
   },
+
+  // Guest: no user and this flag; the shell opens the apps for GUEST_CHILD.
+  isGuest: () => readKey(GUEST_KEY) === '1',
+  startGuest: () => writeKey(GUEST_KEY, '1'),
+  guestChild: GUEST_CHILD,
+  guestAppData,
 
   // Family (parent)
   myFamily: () => provider.myFamily(),

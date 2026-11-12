@@ -119,14 +119,15 @@ export function shellBar(header) {
     const user = await store.currentUser();
     const mode = await store.deviceMode();
     const child = mode === 'child' ? await store.currentChild() : null;
+    const guest = !user && store.isGuest();
 
     const brand = el('a', { className: 'shell-brand', href: `${root}app/#/` },
       el('img', { src: `${root}img/logo.svg`, alt: '', width: 36, height: 36 }),
       el('span', { textContent: 'LevAcademy' }));
     const end = el('div', { className: 'shell-bar-end' });
 
-    if (user && child) {
-      const all = await appsFor(child);
+    if ((user && child) || guest) {
+      const all = await appsFor(guest ? null : child);
       const link = (app) => el('a', {
         className: `shell-app${app.manifest.route === activeRoute ? ' is-active' : ''}`,
         href: `${root}app/#/${app.manifest.route}`,
