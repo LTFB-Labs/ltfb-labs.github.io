@@ -20,7 +20,8 @@
     "path": "balgarski-lev/",
     "name": "Български Лев",
     "about": "Обърни карта и намери мястото на картата на България.",
-    "avatar": 3
+    "avatar": 3,
+    "contract": 2
   },
   {
     "id": "bg-time-traveler",
